@@ -1,0 +1,7 @@
+//Build the image based off the Dockerfile
+docker build --tag nicholasmeadows/doompoddiscordbot .
+
+//Push image to repo
+docker push nicholasmeadows/doompoddiscordbot
+
+// Need ssh into the server to pull and restart the container
