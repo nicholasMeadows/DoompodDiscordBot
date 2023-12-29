@@ -7,8 +7,8 @@ const relativeFile = ASSETS_DIR + "/" + fileName;
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("doomhugletsgo")
-    .setDescription("Katie was impatient circa December 2023"),
+    .setName("doomhugcountdown")
+    .setDescription("3,2,1 HUG!! circa December 2023"),
   async execute(interaction) {
     await interaction.deferReply();
 
