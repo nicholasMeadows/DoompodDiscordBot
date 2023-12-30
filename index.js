@@ -1,14 +1,23 @@
 const fs = require("node:fs");
 const path = require("node:path");
 // Require the necessary discord.js classes
-const { Client, Collection, Events, GatewayIntentBits } = require("discord.js");
+const {
+  Client,
+  Collection,
+  Events,
+  GatewayIntentBits,
+  MessageType,
+} = require("discord.js");
 const { token } = require("./config.json");
+const SucketTrainMonitor = require("./feature/sucklet-train-monitor");
 
 // Create a new client instance
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+});
 
 client.commands = new Collection();
-const foldersPath = path.join(__dirname, "commands");
+const foldersPath = path.join(__dirname, "slash-commands");
 const commandFolders = fs.readdirSync(foldersPath);
 
 for (const folder of commandFolders) {
@@ -29,6 +38,10 @@ for (const folder of commandFolders) {
     }
   }
 }
+
+//initialize feature classes
+const suckletTrainMonitor = new SucketTrainMonitor(client);
+
 // When the client is ready, run this code (only once).
 // The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.
 // It makes some properties non-nullable.
@@ -38,6 +51,11 @@ client.once(Events.ClientReady, (readyClient) => {
 
 // Log in to Discord with your client's token
 client.login(token);
+
+client.on(Events.MessageCreate, (message) => {
+  if (message.author.bot) return;
+  suckletTrainMonitor.handle(message);
+});
 
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
