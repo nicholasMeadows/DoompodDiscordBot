@@ -10,6 +10,7 @@ const {
 } = require("discord.js");
 const { token } = require("./config.json");
 const SucketTrainMonitor = require("./feature/sucklet-train-monitor");
+const cron = require('node-cron');
 
 // Create a new client instance
 const client = new Client({
@@ -39,14 +40,35 @@ for (const folder of commandFolders) {
   }
 }
 
+const DOOMPOD_GUILD_ID = '1143928433093652570';
+const DOOMPOD_SUCKLET_CHANNEL_ID = '1143928433596960870'
+const DOOMPOD_SUCKLET_STICKER_ID = '1153012585680085024';
+const sendDoompodSucket = () => {
+  console.log('sending sucklet to doompod');
+  client.guilds.fetch(DOOMPOD_GUILD_ID).then(guild => {
+    guild.channels.fetch(DOOMPOD_SUCKLET_CHANNEL_ID).then(channel => {
+      if (channel != null) {
+        const sticker = guild.stickers.cache.get(DOOMPOD_SUCKLET_STICKER_ID)
+        channel.send({ stickers: [sticker]})
+      }
+    });
+  })
+}
+
+
 //initialize feature classes
 const suckletTrainMonitor = new SucketTrainMonitor(client);
 
+let doompodSucketSchedule;
 // When the client is ready, run this code (only once).
 // The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.
 // It makes some properties non-nullable.
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
+  if(doompodSucketSchedule !== undefined) {
+    doompodSucketSchedule.stop();
+  }
+  doompodSucketSchedule = cron.schedule('0 08 * * *',sendDoompodSucket);
 });
 
 // Log in to Discord with your client's token
