@@ -1,0 +1,87 @@
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            background-color: rgba(49, 51, 56, 1);
+            padding: 20px 0px;
+            width: fit-content;
+            height: min-content;
+        }
+
+        .root-div {
+            display: flex;
+            flex-direction: row;
+            margin: 0px 20px;
+            overflow: hidden;
+        }
+
+        .discord-text {
+            color: #d1d4d7;
+            font-family: gg sans Normal;
+        }
+
+        .username-message-content-div {
+            flex-grow: 1;
+        }
+
+        .avatar-img {
+            border-radius: 50%;
+            height: 60px;
+            width: 60px;
+        }
+
+        .username-text {
+            font-size: 25px;
+            margin: 0;
+            font-weight: bolder;
+            margin-left: 21px;
+        }
+
+        .message-text-content {
+            margin: 0px;
+            margin-left: 21px;
+            font-weight: bold;
+        }
+
+        .message-attachments-div {
+            display: flex;
+            flex-direction: row;
+            margin-left: 21px;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .attachment-img {
+            object-fit: contain;
+            min-width: 250px;
+            max-width: 250px;
+        }
+    </style>
+</head>
+<body>
+<div class="root-div">
+    <div>
+        <img class="avatar-img" src="{{avatarUrl}}"/>
+    </div>
+    <div class="username-message-content-div">
+        <p class="discord-text username-text">{{guildNickName}}</p>
+
+        {{#if (isdefined messageTextContent)}}
+
+        <pre class="discord-text message-text-content">
+{{messageTextContent}}</pre
+        >
+        {{/if}} {{#if (isdefined attachments)}}
+
+        <div class="message-attachments-div">
+            {{#each attachments}}
+            <img class="attachment-img" src="{{this}}"/>
+            {{/each}}
+        </div>
+        {{/if}}
+    </div>
+</div>
+</body>
+</html>
