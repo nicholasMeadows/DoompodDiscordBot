@@ -47,7 +47,7 @@ module.exports = class ReactionHallOfDoot {
             }
             dataset[messageId].numberOfReactions = reactionCount;
 
-            if (dataset[messageId].numberOfReactions >= NUM_OF_REACTIONS_FOR_HALL_OF_DOOT) {
+            if (dataset[messageId].numberOfReactions >= NUM_OF_REACTIONS_FOR_HALL_OF_DOOT && !dataset[messageId].sentToHallOfDoot) {
                 dataset[messageId].sentToHallOfDoot = true;
                 this.#sendMessageToHallOfDoot(message)
             }
