@@ -92,8 +92,21 @@ module.exports = class ReactionHallOfDoot {
 
     async #createHallOfDootImage(message) {
         const messageGuildMember = message.member;
-        const messageGuildMemberAvatarUrl = messageGuildMember.avatarURL();
-        const messageGuildMemberNickName = messageGuildMember.nickname;
+        const authorServerAvatarUrl = messageGuildMember.avatarURL();
+        const authorServerNickName = messageGuildMember.nickname;
+
+        const userProfileAvatarUrl = message.author.avatarURL();
+        const userProfileName = message.author.username;
+
+        let avatarUrl = authorServerAvatarUrl;
+        if(authorServerAvatarUrl === null || authorServerAvatarUrl === ''){
+            avatarUrl = userProfileAvatarUrl;
+        }
+
+        let username =authorServerNickName;
+        if(username === null || username === ''){
+            username = userProfileName;
+        }
 
         const html = fs.readFileSync('reactionHallOfDootMessageTemplate.html', "utf-8")
         return await nodeHtmlToImage({
@@ -102,8 +115,8 @@ module.exports = class ReactionHallOfDoot {
                 args: ['--no-sandbox']
             },
             content: {
-                avatarUrl: messageGuildMemberAvatarUrl,
-                guildNickName: messageGuildMemberNickName,
+                avatarUrl: avatarUrl,
+                guildNickName: username,
                 messageTextContent: message.content === '' ? undefined : message.content,
                 attachments: message.attachments === undefined ? undefined : message.attachments.map((attachment) => attachment.url)
             },
