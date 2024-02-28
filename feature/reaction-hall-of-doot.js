@@ -83,7 +83,8 @@ module.exports = class ReactionHallOfDoot {
                 {
                     attachment: img
                 }
-            ]
+            ],
+            content: message.url
         };
         this.client.channels.fetch(DOOMPOD_HALL_OF_DOOT_CHANNEL_ID).then((channel) => {
             channel.send(messagePayload);
