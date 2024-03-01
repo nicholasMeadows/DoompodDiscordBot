@@ -16,7 +16,8 @@ const {
     DOOMPOD_GUILD_ID,
     DOOMPOD_SUCKLET_CHANNEL_ID,
     DOOMPOD_SUCKLET_STICKER_ID,
-    DOOMPOD_HALL_OF_DOOT_CHANNEL_ID
+    DOOMPOD_HALL_OF_DOOT_CHANNEL_ID,
+    DOOMPOD_CHANNEL_ID
 } = require("./constants");
 
 // Create a new client instance
@@ -60,12 +61,43 @@ const sendDoompodSucket = () => {
     })
 }
 
+const sendItsFridayInCalifornia = () => {
+    console.log('sending its friday in california to doompod')
+    client.guilds.fetch(DOOMPOD_GUILD_ID).then(guild => {
+        guild.channels.fetch(DOOMPOD_CHANNEL_ID).then(channel => {
+            if (channel != null) {
+                channel.send({
+                    files: [
+                        "./videos/Today is Friday in California.mp4"
+                    ]
+                })
+            }
+        });
+    })
+}
+
+const sendLadiesAndGentlemenTheWeekend = () => {
+    console.log('sending ladies and gentlemen the weekend')
+    client.guilds.fetch(DOOMPOD_GUILD_ID).then(guild => {
+        guild.channels.fetch(DOOMPOD_CHANNEL_ID).then(channel => {
+            if (channel != null) {
+                channel.send({
+                    files: [
+                        "./videos/ladies and gentlemen the weekend.mp4"
+                    ]
+                })
+            }
+        });
+    })
+}
 
 //initialize feature classes
 const reactionHallOfDoot = new ReactionHallOfDoot(client);
 const suckletTrainMonitor = new SucketTrainMonitor(client);
 
 let doompodSucketSchedule;
+let itsFridayInCaliforniaSchedule;
+let ladiesAndGentlemenTheWeekendSchedule;
 // When the client is ready, run this code (only once).
 // The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.
 // It makes some properties non-nullable.
@@ -75,6 +107,16 @@ client.once(Events.ClientReady, (readyClient) => {
         doompodSucketSchedule.stop();
     }
     doompodSucketSchedule = cron.schedule('0 08 * * *', sendDoompodSucket);
+
+    if(itsFridayInCaliforniaSchedule !== undefined) {
+        itsFridayInCaliforniaSchedule.stop();
+    }
+    itsFridayInCaliforniaSchedule = cron.schedule("0 9 * * 5", sendItsFridayInCalifornia)
+
+    if(ladiesAndGentlemenTheWeekendSchedule !== undefined) {
+        ladiesAndGentlemenTheWeekendSchedule.stop();
+    }
+    ladiesAndGentlemenTheWeekendSchedule = cron.schedule("0 5 * * 5", ladiesAndGentlemenTheWeekendSchedule)
 });
 
 // Log in to Discord with your client's token
