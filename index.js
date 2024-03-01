@@ -61,30 +61,13 @@ const sendDoompodSucket = () => {
     })
 }
 
-const sendItsFridayInCalifornia = () => {
-    console.log('sending its friday in california to doompod')
-    client.guilds.fetch(DOOMPOD_GUILD_ID).then(guild => {
-        guild.channels.fetch(DOOMPOD_CHANNEL_ID).then(channel => {
+const sendFilesToChannel = (guildId, channelId, filePathArray) => {
+    console.log(`sending files ${filePathArray} to guild ${guildId} and channel ${channelId}`);
+    client.guilds.fetch(guildId).then(guild => {
+        guild.channels.fetch(channelId).then(channel => {
             if (channel != null) {
                 channel.send({
-                    files: [
-                        "./videos/Today is Friday in California.mp4"
-                    ]
-                })
-            }
-        });
-    })
-}
-
-const sendLadiesAndGentlemenTheWeekend = () => {
-    console.log('sending ladies and gentlemen the weekend')
-    client.guilds.fetch(DOOMPOD_GUILD_ID).then(guild => {
-        guild.channels.fetch(DOOMPOD_CHANNEL_ID).then(channel => {
-            if (channel != null) {
-                channel.send({
-                    files: [
-                        "./videos/ladies and gentlemen the weekend.mp4"
-                    ]
+                    files: filePathArray
                 })
             }
         });
@@ -111,12 +94,16 @@ client.once(Events.ClientReady, (readyClient) => {
     if(itsFridayInCaliforniaSchedule !== undefined) {
         itsFridayInCaliforniaSchedule.stop();
     }
-    itsFridayInCaliforniaSchedule = cron.schedule("0 9 * * 5", sendItsFridayInCalifornia)
+    itsFridayInCaliforniaSchedule = cron.schedule("0 9 * * 5", () => {
+        sendFilesToChannel(DOOMPOD_GUILD_ID, DOOMPOD_CHANNEL_ID, ["./videos/Today is Friday in California.mp4"])
+    })
 
     if(ladiesAndGentlemenTheWeekendSchedule !== undefined) {
         ladiesAndGentlemenTheWeekendSchedule.stop();
     }
-    ladiesAndGentlemenTheWeekendSchedule = cron.schedule("0 5 * * 5", ladiesAndGentlemenTheWeekendSchedule)
+    ladiesAndGentlemenTheWeekendSchedule = cron.schedule("0 5 * * 5", () => {
+        sendFilesToChannel(DOOMPOD_GUILD_ID, DOOMPOD_CHANNEL_ID, ["./videos/ladies and gentlemen the weekend.mp4"])
+    })
 });
 
 // Log in to Discord with your client's token
