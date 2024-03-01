@@ -16,9 +16,8 @@ module.exports = class ReactionHallOfDoot {
     }
 
     async handle(guildId, channelId, messageId, messageCreatedTimestampMilliseconds) {
-        if(guildId !== DOOMPOD_GUILD_ID)
+        if(guildId !== DOOMPOD_GUILD_ID || channelId === DOOMPOD_HALL_OF_DOOT_CHANNEL_ID)
             return;
-
         const channel = this.client.channels.cache.get(channelId);
         channel.messages.fetch(messageId).then(message => {
             const dataset = this.#readReactionJsonDataset();
@@ -33,25 +32,21 @@ module.exports = class ReactionHallOfDoot {
                 return;
             }
 
-            if (dataset[messageId] === undefined) {
-                dataset[messageId] = {
-                    messageCreatedTimestampSeconds: messageCreatedTimestampSeconds,
-                    numberOfReactions: 0,
-                    sentToHallOfDoot: false
+            const messageData = dataset[messageId] === undefined ?  {
+                messageCreatedTimestampSeconds: messageCreatedTimestampSeconds,
+                sentToHallOfDoot: false
+            } : dataset[messageId];
+
+            const reactions = message.reactions.cache;
+            for (let reactionKeyAndObj of reactions) {
+                const reactionCount = reactionKeyAndObj[1].count;
+                if(reactionCount >= NUM_OF_REACTIONS_FOR_HALL_OF_DOOT && !messageData.sentToHallOfDoot) {
+                    messageData.sentToHallOfDoot = true;
+                    this.#sendMessageToHallOfDoot(message);
+                    break;
                 }
             }
-            const reactions = message.reactions.cache;
-            let reactionCount = 0;
-            for (let reactionKeyAndObj of reactions) {
-                reactionCount += reactionKeyAndObj[1].count;
-            }
-            dataset[messageId].numberOfReactions = reactionCount;
-
-            if (dataset[messageId].numberOfReactions >= NUM_OF_REACTIONS_FOR_HALL_OF_DOOT && !dataset[messageId].sentToHallOfDoot) {
-                dataset[messageId].sentToHallOfDoot = true;
-                this.#sendMessageToHallOfDoot(message)
-            }
-
+            dataset[messageId] = messageData;
             this.#saveReactionJsonDataset(dataset);
         });
     }
