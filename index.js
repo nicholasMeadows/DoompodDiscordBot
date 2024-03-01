@@ -11,6 +11,7 @@ const {
 const {token} = require("./config.json");
 const SucketTrainMonitor = require("./feature/sucklet-train-monitor");
 const ReactionHallOfDoot = require("./feature/reaction-hall-of-doot.js");
+const BonkSoundHammerReaction = require("./feature/bonk-sound-hammer-reaction");
 const cron = require('node-cron');
 const {
     DOOMPOD_GUILD_ID,
@@ -77,6 +78,7 @@ const sendFilesToChannel = (guildId, channelId, filePathArray) => {
 //initialize feature classes
 const reactionHallOfDoot = new ReactionHallOfDoot(client);
 const suckletTrainMonitor = new SucketTrainMonitor(client);
+const bonkSoundHammerReaction = new BonkSoundHammerReaction();
 
 let doompodSucketSchedule;
 let itsFridayInCaliforniaSchedule;
@@ -101,7 +103,7 @@ client.once(Events.ClientReady, (readyClient) => {
     if(ladiesAndGentlemenTheWeekendSchedule !== undefined) {
         ladiesAndGentlemenTheWeekendSchedule.stop();
     }
-    ladiesAndGentlemenTheWeekendSchedule = cron.schedule("0 5 * * 5", () => {
+    ladiesAndGentlemenTheWeekendSchedule = cron.schedule("0 17 * * 5", () => {
         sendFilesToChannel(DOOMPOD_GUILD_ID, DOOMPOD_CHANNEL_ID, ["./videos/ladies and gentlemen the weekend.mp4"])
     })
 });
@@ -149,4 +151,5 @@ client.on(Events.MessageReactionAdd, async (interaction) => {
     const messageId = message.id;
     const messageCreatedTimestamp = message.createdTimestamp;
     reactionHallOfDoot.handle(guildId, channelId, messageId, messageCreatedTimestamp);
+    bonkSoundHammerReaction.handle(interaction._emoji.name, message);
 });

@@ -11,6 +11,7 @@ ADD assets ./assets
 ADD feature ./feature
 COPY reactionHallOfDootMessageTemplate.html ./
 ADD videos ./videos
+ADD audio ./audio
 RUN groupadd -r doombot && useradd -rm -g doombot -G audio,video doombot
 RUN chown -hR doombot:doombot /app
 USER doombot
