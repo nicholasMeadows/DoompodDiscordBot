@@ -83,6 +83,7 @@ const bonkSoundHammerReaction = new BonkSoundHammerReaction();
 let doompodSucketSchedule;
 let itsFridayInCaliforniaSchedule;
 let ladiesAndGentlemenTheWeekendSchedule;
+let itIsWednesdayMyDudesSchedule;
 // When the client is ready, run this code (only once).
 // The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.
 // It makes some properties non-nullable.
@@ -105,6 +106,13 @@ client.once(Events.ClientReady, (readyClient) => {
     }
     ladiesAndGentlemenTheWeekendSchedule = cron.schedule("0 17 * * 5", () => {
         sendFilesToChannel(DOOMPOD_GUILD_ID, DOOMPOD_CHANNEL_ID, ["./videos/ladies and gentlemen the weekend.mp4"])
+    })
+
+    if(itIsWednesdayMyDudesSchedule !== undefined) {
+        itIsWednesdayMyDudesSchedule.stop();
+    }
+    itIsWednesdayMyDudesSchedule = cron.schedule("0 9 * * 3", () => {
+        sendFilesToChannel(DOOMPOD_GUILD_ID, DOOMPOD_CHANNEL_ID, ["./videos/It Is Wednesday My Dudes.mp4"])
     })
 });
 
