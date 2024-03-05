@@ -1,19 +1,25 @@
-
+const fs = require('fs');
+const BONK_SOUND_REACTION_MESSAGES_PATH = "./bonkSoundHammerReactionMessages.json";
 module.exports = class BonkSoundHammerReaction {
-    #messagesReactedTo;
 
     constructor() {
-        this.#messagesReactedTo = [];
     }
 
     handle(emojiName, message) {
         const messageId =  message.id;
         const hammerEmote = '🔨';
 
-        if(hammerEmote !== emojiName || this.#messagesReactedTo.includes(messageId)) {
+        let messagesReactedTo = [];
+        if(fs.existsSync(BONK_SOUND_REACTION_MESSAGES_PATH)){
+           messagesReactedTo = JSON.parse(fs.readFileSync(BONK_SOUND_REACTION_MESSAGES_PATH, 'utf-8'));
+        }
+
+        if(hammerEmote !== emojiName || messagesReactedTo.includes(messageId)) {
             return;
         }
-        this.#messagesReactedTo.push(messageId);
+        messagesReactedTo.push(messageId);
+
+        fs.writeFileSync(BONK_SOUND_REACTION_MESSAGES_PATH, JSON.stringify(messagesReactedTo));
 
         message.reply({
             files: ['./audio/bonk.mp3']
