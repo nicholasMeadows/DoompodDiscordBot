@@ -1,4 +1,5 @@
 module.exports = {
+  CONFIG_FILE:"./config.json",
   ASSETS_DIR: "./assets",
   AUDIO_DIR: "./audio",
   VIDEOS_DIR:"./videos",
