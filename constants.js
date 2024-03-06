@@ -1,8 +1,8 @@
 module.exports = {
   CONFIG_FILE:"./config.json",
-  ASSETS_DIR: "./assets",
-  AUDIO_DIR: "./audio",
-  VIDEOS_DIR:"./videos",
+  AUDIO_DIR:"./assets/audio",
+  IMAGES_DIR:"./assets/images",
+  VIDEOS_DIR:"./assets/videos",
   DOOMPOD_HUG1_2023_FILE:"doompod-hug1-2023.gif",
   DOOMPOD_HUG2_2023_FILE:"doompod-hug2-2023.gif",
   DOOMPOD_KATIE_LETS_GO_2023_FILE:"doompod-katie-letsgo-2023.gif",
