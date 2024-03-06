@@ -1,4 +1,6 @@
 const fs = require('fs');
+const path = require("path");
+const {AUDIO_DIR, BONK_SOUND_HAMMER_REACTION_AUTIO_FILE} = require("../constants");
 const BONK_SOUND_REACTION_MESSAGES_PATH = "./bonkSoundHammerReactionMessages.json";
 module.exports = class BonkSoundHammerReaction {
 
@@ -22,7 +24,7 @@ module.exports = class BonkSoundHammerReaction {
         fs.writeFileSync(BONK_SOUND_REACTION_MESSAGES_PATH, JSON.stringify(messagesReactedTo));
 
         message.reply({
-            files: ['./audio/bonk.mp3']
+            files: [path.join(AUDIO_DIR, BONK_SOUND_HAMMER_REACTION_AUTIO_FILE)]
         });
     }
 };

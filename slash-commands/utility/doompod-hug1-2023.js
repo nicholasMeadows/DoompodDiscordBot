@@ -4,10 +4,7 @@ const {
   EmbedBuilder,
   MessageAttachment,
 } = require("discord.js");
-const { ASSETS_DIR } = require("../../constants");
-
-const fileName = "doompod-hug1-2023.gif";
-const relativeFile = ASSETS_DIR + "/" + fileName;
+const { ASSETS_DIR, DOOMPOD_HUG1_2023_FILE} = require("../../constants");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -15,7 +12,8 @@ module.exports = {
     .setDescription("Our very first Doom-pod hug circa December 2023"),
   async execute(interaction) {
     await interaction.deferReply();
-    const file = new AttachmentBuilder(relativeFile);
+    const attachmentPath = path.join(ASSETS_DIR, DOOMPOD_HUG1_2023_FILE)
+    const file = new AttachmentBuilder(attachmentPath);
     interaction.editReply({ files: [file] });
   },
 };

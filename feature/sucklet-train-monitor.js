@@ -1,8 +1,4 @@
-const SUCKLET_TRAIN_TIME_BOX = 30;
-const SUCKLET_TRAIN_COOLDOWN = 5;
-const SUCKLETS_TO_TRIGGER_TRAIN = 4;
-const SUCKLET_STICKER_NAME = "sucklet";
-
+const {SUCKLET_TRAIN_TIME_BOX, SUCKLET_TRAIN_COOLDOWN, SUCKLETS_TO_TRIGGER_TRAIN, SUCKLET_STICKER_NAME} = require("../constants");
 module.exports = class SuckletTrainMonitor {
   constructor(discordClient) {
     this.channelSuckletTrainCooldown = new Map();
@@ -16,7 +12,7 @@ module.exports = class SuckletTrainMonitor {
       const keys = stickers.keys();
       for (const key of keys) {
         const sticker = stickers.get(key);
-        if (sticker.name == SUCKLET_STICKER_NAME) {
+        if (sticker.name === SUCKLET_STICKER_NAME) {
           const lastTrainStart =
             this.channelSuckletTrainCooldown.get(channelId);
           if (lastTrainStart != undefined) {

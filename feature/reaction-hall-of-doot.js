@@ -1,14 +1,11 @@
-const {DOOMPOD_GUILD_ID, DOOMPOD_HALL_OF_DOOT_CHANNEL_ID} = require("../constants");
+const {DOOMPOD_GUILD_ID, DOOMPOD_HALL_OF_DOOT_CHANNEL_ID, REACTION_HALL_OF_DOOT_JSON_DATA_PATH,
+    REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_WEEKS, REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_MINUTES,
+    REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_HOURS, REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_DAYS,
+    REACTION_HALL_OF_DOOT_NUM_OF_REACTIONS_REQUIRED
+} = require("../constants");
 const fs = require("fs");
 const nodeHtmlToImage = require('node-html-to-image');
 
-const REACTION_JSON_DATA_PATH = "./reactionHallOfDootData.json";
-const MAX_MESSAGE_AGE_WEEKS = 4;
-const MAX_MESSAGE_AGE_DAYS = 0;
-const MAX_MESSAGE_AGE_HOURS = 0;
-const MAX_MESSAGE_AGE_MINUTES = 0;
-
-const NUM_OF_REACTIONS_FOR_HALL_OF_DOOT = 5;
 module.exports = class ReactionHallOfDoot {
 
     constructor(client) {
@@ -40,7 +37,7 @@ module.exports = class ReactionHallOfDoot {
             const reactions = message.reactions.cache;
             for (let reactionKeyAndObj of reactions) {
                 const reactionCount = reactionKeyAndObj[1].count;
-                if(reactionCount >= NUM_OF_REACTIONS_FOR_HALL_OF_DOOT && !messageData.sentToHallOfDoot) {
+                if(reactionCount >=REACTION_HALL_OF_DOOT_NUM_OF_REACTIONS_REQUIRED && !messageData.sentToHallOfDoot) {
                     messageData.sentToHallOfDoot = true;
                     this.#sendMessageToHallOfDoot(message);
                     break;
@@ -52,21 +49,21 @@ module.exports = class ReactionHallOfDoot {
     }
 
     #readReactionJsonDataset() {
-        if (!fs.existsSync(REACTION_JSON_DATA_PATH)) {
+        if (!fs.existsSync(REACTION_HALL_OF_DOOT_JSON_DATA_PATH)) {
             return {}
         }
-        return JSON.parse(fs.readFileSync(REACTION_JSON_DATA_PATH, 'utf8'));
+        return JSON.parse(fs.readFileSync(REACTION_HALL_OF_DOOT_JSON_DATA_PATH, 'utf8'));
     }
 
     #saveReactionJsonDataset(dataset) {
-        fs.writeFileSync(REACTION_JSON_DATA_PATH, JSON.stringify(dataset));
+        fs.writeFileSync(REACTION_HALL_OF_DOOT_JSON_DATA_PATH, JSON.stringify(dataset));
     }
 
     #calcMinEpochForMessage() {
-        const maxAgeWeeksInSeconds = MAX_MESSAGE_AGE_WEEKS * 7 * 24 * 60 * 60;
-        const maxAgeDaysInSeconds = MAX_MESSAGE_AGE_DAYS * 24 * 60 * 60;
-        const maxAgeHoursInSeconds = MAX_MESSAGE_AGE_HOURS * 60 * 60;
-        const maxAgeMinutesInSeconds = MAX_MESSAGE_AGE_MINUTES * 60;
+        const maxAgeWeeksInSeconds = REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_WEEKS * 7 * 24 * 60 * 60;
+        const maxAgeDaysInSeconds = REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_DAYS * 24 * 60 * 60;
+        const maxAgeHoursInSeconds = REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_HOURS * 60 * 60;
+        const maxAgeMinutesInSeconds = REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_MINUTES * 60;
         const epochDiff = maxAgeWeeksInSeconds + maxAgeDaysInSeconds + maxAgeHoursInSeconds + maxAgeMinutesInSeconds;
         return Math.floor((Date.now() / 1000) - epochDiff);
     }

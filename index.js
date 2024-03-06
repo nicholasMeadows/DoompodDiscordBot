@@ -8,7 +8,7 @@ const {
     GatewayIntentBits,
     Partials
 } = require("discord.js");
-const {token} = require("./config.json");
+const config = require("./config.json");
 const SucketTrainMonitor = require("./feature/sucklet-train-monitor");
 const ReactionHallOfDoot = require("./feature/reaction-hall-of-doot.js");
 const BonkSoundHammerReaction = require("./feature/bonk-sound-hammer-reaction");
@@ -18,7 +18,8 @@ const {
     DOOMPOD_SUCKLET_CHANNEL_ID,
     DOOMPOD_SUCKLET_STICKER_ID,
     DOOMPOD_HALL_OF_DOOT_CHANNEL_ID,
-    DOOMPOD_CHANNEL_ID
+    DOOMPOD_CHANNEL_ID, VIDEOS_DIR, TODAY_IS_FRIDAY_IN_CALIFORNIA_VIDEO_FILE,
+    LADIES_AND_GENTLEMEN_THE_WEEKEND_VIDEO_FILE, ITS_WEDNESDAY_MY_DUDES_VIDEO_FILE
 } = require("./constants");
 
 // Create a new client instance
@@ -92,32 +93,33 @@ client.once(Events.ClientReady, (readyClient) => {
     if (doompodSucketSchedule !== undefined) {
         doompodSucketSchedule.stop();
     }
-    doompodSucketSchedule = cron.schedule('0 08 * * *', sendDoompodSucket);
+
+    doompodSucketSchedule = cron.schedule(config.doompodSuckletCron, sendDoompodSucket);
 
     if(itsFridayInCaliforniaSchedule !== undefined) {
         itsFridayInCaliforniaSchedule.stop();
     }
-    itsFridayInCaliforniaSchedule = cron.schedule("0 9 * * 5", () => {
-        sendFilesToChannel(DOOMPOD_GUILD_ID, DOOMPOD_CHANNEL_ID, ["./videos/Today is Friday in California.mp4"])
+    itsFridayInCaliforniaSchedule = cron.schedule(config.itsFridayInCaliforniaCron, () => {
+        sendFilesToChannel(DOOMPOD_GUILD_ID, DOOMPOD_CHANNEL_ID, [path.join(VIDEOS_DIR, TODAY_IS_FRIDAY_IN_CALIFORNIA_VIDEO_FILE)])
     })
 
     if(ladiesAndGentlemenTheWeekendSchedule !== undefined) {
         ladiesAndGentlemenTheWeekendSchedule.stop();
     }
-    ladiesAndGentlemenTheWeekendSchedule = cron.schedule("0 17 * * 5", () => {
-        sendFilesToChannel(DOOMPOD_GUILD_ID, DOOMPOD_CHANNEL_ID, ["./videos/ladies and gentlemen the weekend.mp4"])
+    ladiesAndGentlemenTheWeekendSchedule = cron.schedule(config.ladiesAndGentlemenTheWeekendCron, () => {
+        sendFilesToChannel(DOOMPOD_GUILD_ID, DOOMPOD_CHANNEL_ID, [path.join(VIDEOS_DIR, LADIES_AND_GENTLEMEN_THE_WEEKEND_VIDEO_FILE)])
     })
 
     if(itIsWednesdayMyDudesSchedule !== undefined) {
         itIsWednesdayMyDudesSchedule.stop();
     }
-    itIsWednesdayMyDudesSchedule = cron.schedule("0 9 * * 3", () => {
-        sendFilesToChannel(DOOMPOD_GUILD_ID, DOOMPOD_CHANNEL_ID, ["./videos/It Is Wednesday My Dudes.mp4"])
+    itIsWednesdayMyDudesSchedule = cron.schedule(config.itsWednesdayMyDudesCron, () => {
+        sendFilesToChannel(DOOMPOD_GUILD_ID, DOOMPOD_CHANNEL_ID, [path.join(VIDEOS_DIR, ITS_WEDNESDAY_MY_DUDES_VIDEO_FILE)])
     })
 });
 
 // Log in to Discord with your client's token
-client.login(token);
+client.login(config.token);
 
 client.on(Events.MessageCreate, (message) => {
     if (message.author.bot) return;
