@@ -8,11 +8,10 @@ const {
     GatewayIntentBits,
     Partials
 } = require("discord.js");
-const ConfigUtil = require('./ConfigUtil');
+const ConfigService = require('./service/config-service');
 const SucketTrainMonitor = require("./feature/sucklet-train-monitor");
 const ReactionHallOfDoot = require("./feature/reaction-hall-of-doot.js");
 const BonkSoundHammerReaction = require("./feature/bonk-sound-hammer-reaction");
-const cron = require('node-cron');
 const {
     DOOMPOD_GUILD_ID,
     DOOMPOD_SUCKLET_CHANNEL_ID,
@@ -21,17 +20,19 @@ const {
     LADIES_AND_GENTLEMEN_THE_WEEKEND_VIDEO_FILE, ITS_WEDNESDAY_MY_DUDES_VIDEO_FILE, CONFIG_FILE
 } = require("./constants");
 
+const SendMediaOnCron = require("./feature/send-media-on-cron");
+
 if(!fs.existsSync(CONFIG_FILE)) {
     console.log(`${CONFIG_FILE} not found`)
     process.exit(1);
 }
-const configUtil = new ConfigUtil();
-const readConfigFromFileAndUpdateConfigUtil = () => {
+const configService = new ConfigService();
+const readConfigFromFileAndUpdateConfigService = () => {
     const configFileContent = fs.readFileSync(CONFIG_FILE, "utf-8");
-    configUtil.loadUpdatedConfig(JSON.parse(configFileContent));
+    configService.loadUpdatedConfig(JSON.parse(configFileContent));
 
 }
-readConfigFromFileAndUpdateConfigUtil();
+readConfigFromFileAndUpdateConfigService();
 
 // Create a new client instance
 const client = new Client({
@@ -59,32 +60,7 @@ for (const folder of commandFolders) {
                 `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
             );
         }
-    }
-}
-
-const sendDoompodSucket = () => {
-    console.log('sending sucklet to doompod');
-    client.guilds.fetch(DOOMPOD_GUILD_ID).then(guild => {
-        guild.channels.fetch(DOOMPOD_SUCKLET_CHANNEL_ID).then(channel => {
-            if (channel != null) {
-                const sticker = guild.stickers.cache.get(DOOMPOD_SUCKLET_STICKER_ID)
-                channel.send({stickers: [sticker]})
-            }
-        });
-    })
-}
-
-const sendFilesToChannel = (guildId, channelId, filePathArray) => {
-    console.log(`sending files ${filePathArray} to guild ${guildId} and channel ${channelId}`);
-    client.guilds.fetch(guildId).then(guild => {
-        guild.channels.fetch(channelId).then(channel => {
-            if (channel != null) {
-                channel.send({
-                    files: filePathArray
-                })
-            }
-        });
-    })
+   }
 }
 
 //initialize feature classes
@@ -92,45 +68,32 @@ const reactionHallOfDoot = new ReactionHallOfDoot(client);
 const suckletTrainMonitor = new SucketTrainMonitor(client);
 const bonkSoundHammerReaction = new BonkSoundHammerReaction();
 
-let doompodSucketSchedule;
-let itsFridayInCaliforniaSchedule;
-let ladiesAndGentlemenTheWeekendSchedule;
-let itIsWednesdayMyDudesSchedule;
 // When the client is ready, run this code (only once).
 // The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.
 // It makes some properties non-nullable.
 client.once(Events.ClientReady, (readyClient) => {
     console.log(`Ready! Logged in as ${readyClient.user.tag}`);
-    if (doompodSucketSchedule !== undefined) {
-        doompodSucketSchedule.stop();
-    }
 
-    doompodSucketSchedule = cron.schedule(configUtil.getDoompodSuckletCron(), sendDoompodSucket);
-
-    if(itsFridayInCaliforniaSchedule !== undefined) {
-        itsFridayInCaliforniaSchedule.stop();
-    }
-    itsFridayInCaliforniaSchedule = cron.schedule(configUtil.getItsFridayInCaliforniaCron(), () => {
-        sendFilesToChannel(DOOMPOD_GUILD_ID, DOOMPOD_CHANNEL_ID, [path.join(VIDEOS_DIR, TODAY_IS_FRIDAY_IN_CALIFORNIA_VIDEO_FILE)])
-    })
-
-    if(ladiesAndGentlemenTheWeekendSchedule !== undefined) {
-        ladiesAndGentlemenTheWeekendSchedule.stop();
-    }
-    ladiesAndGentlemenTheWeekendSchedule = cron.schedule(configUtil.getLadiesAndGentlemenTheWeekendCron(), () => {
-        sendFilesToChannel(DOOMPOD_GUILD_ID, DOOMPOD_CHANNEL_ID, [path.join(VIDEOS_DIR, LADIES_AND_GENTLEMEN_THE_WEEKEND_VIDEO_FILE)])
-    })
-
-    if(itIsWednesdayMyDudesSchedule !== undefined) {
-        itIsWednesdayMyDudesSchedule.stop();
-    }
-    itIsWednesdayMyDudesSchedule = cron.schedule(configUtil.getItsWednesdayMyDudesCron(), () => {
-        sendFilesToChannel(DOOMPOD_GUILD_ID, DOOMPOD_CHANNEL_ID, [path.join(VIDEOS_DIR, ITS_WEDNESDAY_MY_DUDES_VIDEO_FILE)])
-    })
+    new SendMediaOnCron(client, configService.getDoompodSuckletCron(), DOOMPOD_GUILD_ID, DOOMPOD_SUCKLET_CHANNEL_ID, [], [DOOMPOD_SUCKLET_STICKER_ID]);
+    new SendMediaOnCron(client,
+        configService.getItsFridayInCaliforniaCron(), DOOMPOD_GUILD_ID,
+        DOOMPOD_CHANNEL_ID,
+        [path.join(VIDEOS_DIR, TODAY_IS_FRIDAY_IN_CALIFORNIA_VIDEO_FILE)],
+        []);
+    new SendMediaOnCron(client,
+        configService.getLadiesAndGentlemenTheWeekendCron(), DOOMPOD_GUILD_ID,
+        DOOMPOD_CHANNEL_ID,
+        [path.join(VIDEOS_DIR, LADIES_AND_GENTLEMEN_THE_WEEKEND_VIDEO_FILE)],
+        []);
+    new SendMediaOnCron(client,
+        configService.getItsWednesdayMyDudesCron(), DOOMPOD_GUILD_ID,
+        DOOMPOD_CHANNEL_ID,
+        [path.join(VIDEOS_DIR, ITS_WEDNESDAY_MY_DUDES_VIDEO_FILE)],
+        []);
 });
 
 // Log in to Discord with your client's token
-client.login(configUtil.getToken());
+client.login(configService.getToken());
 
 client.on(Events.MessageCreate, (message) => {
     if (message.author.bot) return;

@@ -1,4 +1,4 @@
-module.exports = class ConfigUtil {
+module.exports = class ConfigService {
     #token;
     #clientId;
     #doompodSuckletCron;
