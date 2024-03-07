@@ -5,6 +5,7 @@ module.exports = class ConfigService {
     #itsFridayInCaliforniaCron;
     #ladiesAndGentlemenTheWeekendCron;
     #itsWednesdayMyDudesCron;
+    #randomActuallyReplyPercentage
     constructor() {
     }
 
@@ -15,6 +16,7 @@ module.exports = class ConfigService {
         this.#itsFridayInCaliforniaCron = config.itsFridayInCaliforniaCron;
         this.#ladiesAndGentlemenTheWeekendCron = config.ladiesAndGentlemenTheWeekendCron;
         this.#itsWednesdayMyDudesCron = config.itsWednesdayMyDudesCron;
+        this.#randomActuallyReplyPercentage = config.randomActuallyReplyPercentage;
     }
 
     getToken() {
@@ -36,4 +38,7 @@ module.exports = class ConfigService {
         return this.#itsWednesdayMyDudesCron;
     }
 
+    getRandomActuallyReplyPercentage() {
+        return this.#randomActuallyReplyPercentage;
+    }
 }

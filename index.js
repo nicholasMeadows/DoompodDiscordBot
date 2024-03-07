@@ -12,6 +12,7 @@ const ConfigService = require('./service/config-service');
 const SucketTrainMonitor = require("./feature/sucklet-train-monitor");
 const ReactionHallOfDoot = require("./feature/reaction-hall-of-doot.js");
 const BonkSoundHammerReaction = require("./feature/bonk-sound-hammer-reaction");
+const RandomActuallyReply = require('./feature/random-actually-reply');
 const {
     DOOMPOD_GUILD_ID,
     DOOMPOD_SUCKLET_CHANNEL_ID,
@@ -67,6 +68,7 @@ for (const folder of commandFolders) {
 const reactionHallOfDoot = new ReactionHallOfDoot(client);
 const suckletTrainMonitor = new SucketTrainMonitor(client);
 const bonkSoundHammerReaction = new BonkSoundHammerReaction();
+const randomActuallyReply = new RandomActuallyReply(configService);
 
 // When the client is ready, run this code (only once).
 // The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.
@@ -98,6 +100,7 @@ client.login(configService.getToken());
 client.on(Events.MessageCreate, (message) => {
     if (message.author.bot) return;
     suckletTrainMonitor.handle(message);
+    randomActuallyReply.handle(message);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {

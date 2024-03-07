@@ -7,6 +7,7 @@ module.exports = {
   DOOMPOD_HUG2_2023_FILE:"doompod-hug2-2023.gif",
   DOOMPOD_KATIE_LETS_GO_2023_FILE:"doompod-katie-letsgo-2023.gif",
   DOOMPOD_TRISHAKE_2023_FILE:"doompod-trishake-2023.gif",
+  RANDOM_ACTUALLY_REPLY_GIF_FILE:"random-actually-reply.gif",
   TODAY_IS_FRIDAY_IN_CALIFORNIA_VIDEO_FILE:"Today is Friday in California.mp4",
   LADIES_AND_GENTLEMEN_THE_WEEKEND_VIDEO_FILE:"ladies and gentlemen the weekend.mp4",
   ITS_WEDNESDAY_MY_DUDES_VIDEO_FILE:"It Is Wednesday My Dudes.mp4",
