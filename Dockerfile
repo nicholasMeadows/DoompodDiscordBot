@@ -5,6 +5,7 @@ RUN apt install -y libgtk-3-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libas
 
 WORKDIR /app
 ADD assets ./assets
+ADD enum ./enum
 ADD feature ./feature
 ADD fonts ./fonts
 ADD repository ./repository

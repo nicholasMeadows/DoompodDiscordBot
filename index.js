@@ -13,19 +13,13 @@ const SucketTrainMonitor = require("./feature/sucklet-train-monitor");
 const ReactionHallOfDoot = require("./feature/reaction-hall-of-doot.js");
 const BonkSoundHammerReaction = require("./feature/bonk-sound-hammer-reaction");
 const RandomActuallyReply = require('./feature/random-actually-reply');
-const {
-    DOOMPOD_GUILD_ID,
-    DOOMPOD_SUCKLET_CHANNEL_ID,
-    DOOMPOD_SUCKLET_STICKER_ID,
-    DOOMPOD_CHANNEL_ID, VIDEOS_DIR, TODAY_IS_FRIDAY_IN_CALIFORNIA_VIDEO_FILE,
-    LADIES_AND_GENTLEMEN_THE_WEEKEND_VIDEO_FILE, ITS_WEDNESDAY_MY_DUDES_VIDEO_FILE, CONFIG_FILE
-} = require("./constants");
 
-const SendMediaOnCron = require("./feature/send-media-on-cron");
+const BotCron = require("./feature/bot-cron");
 
 const GuildRepository = require('./repository/guild-repository')
 const ChannelRepository = require('./repository/channel-repository');
 const MessageRepository = require('./repository/message-repository')
+const CronRepository = require('./repository/cron-repository');
 const EntityCreation = require('./repository/entity-creation')
 
 if (!fs.existsSync(CONFIG_FILE)) {
@@ -66,12 +60,17 @@ const checkDatabase = () => {
     if(dbJson.messages === undefined) {
         dbJson.messages = [];
     }
+
+    if(dbJson.crons === undefined) {
+        dbJson.crons = [];
+    }
     fs.writeFileSync(databaseFile, JSON.stringify(dbJson));
 }
 checkDatabase();
 const guildRepository = new GuildRepository(configService);
 const channelRepository = new ChannelRepository(configService);
 const messageRepository = new MessageRepository(configService);
+const cronRepository = new CronRepository(configService);
 EntityCreation.guildRepository = guildRepository;
 EntityCreation.channelRepository = channelRepository;
 EntityCreation.messageRepository = messageRepository;
@@ -116,23 +115,10 @@ const randomActuallyReply = new RandomActuallyReply(configService);
 // It makes some properties non-nullable.
 client.once(Events.ClientReady, (readyClient) => {
     console.log(`Ready! Logged in as ${readyClient.user.tag}`);
-
-    new SendMediaOnCron(client, configService.getDoompodSuckletCron(), DOOMPOD_GUILD_ID, DOOMPOD_SUCKLET_CHANNEL_ID, [], [DOOMPOD_SUCKLET_STICKER_ID]);
-    new SendMediaOnCron(client,
-        configService.getItsFridayInCaliforniaCron(), DOOMPOD_GUILD_ID,
-        DOOMPOD_CHANNEL_ID,
-        [path.join(VIDEOS_DIR, TODAY_IS_FRIDAY_IN_CALIFORNIA_VIDEO_FILE)],
-        []);
-    new SendMediaOnCron(client,
-        configService.getLadiesAndGentlemenTheWeekendCron(), DOOMPOD_GUILD_ID,
-        DOOMPOD_CHANNEL_ID,
-        [path.join(VIDEOS_DIR, LADIES_AND_GENTLEMEN_THE_WEEKEND_VIDEO_FILE)],
-        []);
-    new SendMediaOnCron(client,
-        configService.getItsWednesdayMyDudesCron(), DOOMPOD_GUILD_ID,
-        DOOMPOD_CHANNEL_ID,
-        [path.join(VIDEOS_DIR, ITS_WEDNESDAY_MY_DUDES_VIDEO_FILE)],
-        []);
+    const cronEntities = cronRepository.findAllCrons();
+    cronEntities.forEach((cronEntity) => {
+        new BotCron(client, cronEntity);
+    })
 });
 
 // Log in to Discord with your client's token
