@@ -1,31 +1,42 @@
 const fs = require('fs');
 const path = require("path");
 const {AUDIO_DIR, BONK_SOUND_HAMMER_REACTION_AUTIO_FILE} = require("../constants");
-const BONK_SOUND_REACTION_MESSAGES_PATH = "./bonkSoundHammerReactionMessages.json";
+const EntityCreation = require('../repository/entity-creation');
 module.exports = class BonkSoundHammerReaction {
-
-    constructor() {
+#messageRepository;
+#guildRepository;
+    constructor(guildRepository, messageRepository) {
+        this.#guildRepository = guildRepository;
+        this.#messageRepository = messageRepository;
     }
 
     handle(emojiName, message) {
-        const messageId =  message.id;
-        const hammerEmote = '🔨';
-
-        let messagesReactedTo = [];
-        if(fs.existsSync(BONK_SOUND_REACTION_MESSAGES_PATH)){
-           messagesReactedTo = JSON.parse(fs.readFileSync(BONK_SOUND_REACTION_MESSAGES_PATH, 'utf-8'));
-        }
-
-        if(hammerEmote !== emojiName || messagesReactedTo.includes(messageId)) {
+        const hammerEmoji = '🔨';
+        if(hammerEmoji !== emojiName) {
             return;
         }
-        messagesReactedTo.push(messageId);
+        const guildId = message.guildId;
+        const channelId = message.channelId;
+        const messageId =  message.id;
 
-        fs.writeFileSync(BONK_SOUND_REACTION_MESSAGES_PATH, JSON.stringify(messagesReactedTo));
+        let guildEntity = this.#guildRepository.findByGuildId(guildId);
+        if(guildEntity === undefined) {
+            guildEntity = EntityCreation.createGuildEntity(guildId);
+        }
 
-        message.reply({
-            files: [path.join(AUDIO_DIR, BONK_SOUND_HAMMER_REACTION_AUTIO_FILE)]
-        });
+        let messageEntity = this.#messageRepository.findByMessageId(messageId);
+        if(messageEntity === undefined) {
+            messageEntity = EntityCreation.createMessageEntity(messageId, channelId, guildId);
+        }
+
+        if(!messageEntity.messageReactedToWithBonkHammer){
+            messageEntity.messageReactedToWithBonkHammer = true;
+            this.#guildRepository.save(guildEntity);
+            this.#messageRepository.save(messageEntity);
+                message.reply({
+                    files: [path.join(AUDIO_DIR, BONK_SOUND_HAMMER_REACTION_AUTIO_FILE)]
+                });
+        }
     }
 };
 

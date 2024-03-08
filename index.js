@@ -23,7 +23,12 @@ const {
 
 const SendMediaOnCron = require("./feature/send-media-on-cron");
 
-if(!fs.existsSync(CONFIG_FILE)) {
+const GuildRepository = require('./repository/guild-repository')
+const ChannelRepository = require('./repository/channel-repository');
+const MessageRepository = require('./repository/message-repository')
+const EntityCreation = require('./repository/entity-creation')
+
+if (!fs.existsSync(CONFIG_FILE)) {
     console.log(`${CONFIG_FILE} not found`)
     process.exit(1);
 }
@@ -34,6 +39,42 @@ const readConfigFromFileAndUpdateConfigService = () => {
 
 }
 readConfigFromFileAndUpdateConfigService();
+
+const checkDatabase = () => {
+    const databaseFile = configService.getDatabaseFile();
+    if (!fs.existsSync(databaseFile)) {
+        fs.writeFileSync(databaseFile, '');
+    }
+    let dbFileContent = fs.readFileSync(databaseFile, 'utf-8');
+
+    let dbJson;
+    if (dbFileContent === undefined || dbFileContent.trim() === '') {
+        const initialDB = {
+            guilds:[],
+            channels:[],
+            messages:[]
+        }
+        dbFileContent = JSON.stringify(initialDB)
+    }
+    dbJson = JSON.parse(dbFileContent);
+    if (dbJson.guilds === undefined) {
+        dbJson.guilds = [];
+    }
+    if(dbJson.channels === undefined) {
+        dbJson.channels = [];
+    }
+    if(dbJson.messages === undefined) {
+        dbJson.messages = [];
+    }
+    fs.writeFileSync(databaseFile, JSON.stringify(dbJson));
+}
+checkDatabase();
+const guildRepository = new GuildRepository(configService);
+const channelRepository = new ChannelRepository(configService);
+const messageRepository = new MessageRepository(configService);
+EntityCreation.guildRepository = guildRepository;
+EntityCreation.channelRepository = channelRepository;
+EntityCreation.messageRepository = messageRepository;
 
 // Create a new client instance
 const client = new Client({
@@ -61,13 +102,13 @@ for (const folder of commandFolders) {
                 `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
             );
         }
-   }
+    }
 }
 
 //initialize feature classes
-const reactionHallOfDoot = new ReactionHallOfDoot(client);
+const reactionHallOfDoot = new ReactionHallOfDoot(client, guildRepository, messageRepository);
 const suckletTrainMonitor = new SucketTrainMonitor(client);
-const bonkSoundHammerReaction = new BonkSoundHammerReaction();
+const bonkSoundHammerReaction = new BonkSoundHammerReaction(guildRepository, messageRepository);
 const randomActuallyReply = new RandomActuallyReply(configService);
 
 // When the client is ready, run this code (only once).
@@ -133,10 +174,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 client.on(Events.MessageReactionAdd, async (interaction) => {
     const message = interaction.message;
-    const guildId = message.guildId;
-    const channelId = message.channelId;
-    const messageId = message.id;
-    const messageCreatedTimestamp = message.createdTimestamp;
-    reactionHallOfDoot.handle(guildId, channelId, messageId, messageCreatedTimestamp);
+    reactionHallOfDoot.handle(interaction);
     bonkSoundHammerReaction.handle(interaction._emoji.name, message);
 });

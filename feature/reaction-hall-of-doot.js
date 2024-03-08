@@ -1,74 +1,59 @@
-const {DOOMPOD_GUILD_ID, DOOMPOD_HALL_OF_DOOT_CHANNEL_ID, REACTION_HALL_OF_DOOT_JSON_DATA_PATH,
-    REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_WEEKS, REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_MINUTES,
-    REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_HOURS, REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_DAYS,
-    REACTION_HALL_OF_DOOT_NUM_OF_REACTIONS_REQUIRED
-} = require("../constants");
 const fs = require("fs");
 const nodeHtmlToImage = require('node-html-to-image');
+const EntityCreation = require('../repository/entity-creation');
 
 module.exports = class ReactionHallOfDoot {
 
-    constructor(client) {
+    #guildRepository;
+    #messageRepository;
+
+    constructor(client, guildRepository, messageRepository) {
         this.client = client;
+        this.#guildRepository = guildRepository;
+        this.#messageRepository = messageRepository;
     }
 
-    async handle(guildId, channelId, messageId, messageCreatedTimestampMilliseconds) {
-        if(guildId !== DOOMPOD_GUILD_ID || channelId === DOOMPOD_HALL_OF_DOOT_CHANNEL_ID)
+    async handle(interaction) {
+        const message = interaction.message;
+        const guildId = message.guildId
+        const channelId = message.channelId;
+        const messageId = message.id;
+
+        let guild = this.#guildRepository.findByGuildId(guildId);
+        if (guild === undefined) {
+            guild = EntityCreation.createGuildEntity(guildId);
+        }
+
+        if (this.#isMessageOlderThanMaxAge(message, guild.reactionHallOfDootMaxMessageAge) || guild.hallOfDootChannelId === undefined || guild.hallOfDootChannelId === '') {
             return;
+        }
         const channel = this.client.channels.cache.get(channelId);
         channel.messages.fetch(messageId).then(message => {
-            const dataset = this.#readReactionJsonDataset();
+            const discordReactions = message.reactions.cache
+            for (let [reactionId, reaction] of discordReactions) {
+                if(reaction.count >= guild.numberOfReactionsForHallOfDoot) {
+                    let messageEntity = this.#messageRepository.findByMessageId(messageId);
+                    if (messageEntity === undefined) {
+                        messageEntity = EntityCreation.createMessageEntity(messageId, channelId, guildId);
+                    }
 
-            const minEpochForMessage = this.#calcMinEpochForMessage()
-            const messageCreatedTimestampSeconds = Math.floor(messageCreatedTimestampMilliseconds / 1000);
-            if (minEpochForMessage > messageCreatedTimestampSeconds) {
-                if (dataset[messageId] !== undefined) {
-                    delete dataset[messageId];
-                    this.#saveReactionJsonDataset(dataset);
-                }
-                return;
-            }
-
-            const messageData = dataset[messageId] === undefined ?  {
-                messageCreatedTimestampSeconds: messageCreatedTimestampSeconds,
-                sentToHallOfDoot: false
-            } : dataset[messageId];
-
-            const reactions = message.reactions.cache;
-            for (let reactionKeyAndObj of reactions) {
-                const reactionCount = reactionKeyAndObj[1].count;
-                if(reactionCount >=REACTION_HALL_OF_DOOT_NUM_OF_REACTIONS_REQUIRED && !messageData.sentToHallOfDoot) {
-                    messageData.sentToHallOfDoot = true;
-                    this.#sendMessageToHallOfDoot(message);
-                    break;
+                    if(!messageEntity.messageSentToHallOfDoot) {
+                        messageEntity.messageSentToHallOfDoot = true;
+                        this.#guildRepository.save(guild);
+                        this.#messageRepository.save(messageEntity);
+                        this.#sendMessageToHallOfDoot(message, guild.hallOfDootChannelId)
+                    }
                 }
             }
-            dataset[messageId] = messageData;
-            this.#saveReactionJsonDataset(dataset);
         });
     }
 
-    #readReactionJsonDataset() {
-        if (!fs.existsSync(REACTION_HALL_OF_DOOT_JSON_DATA_PATH)) {
-            return {}
-        }
-        return JSON.parse(fs.readFileSync(REACTION_HALL_OF_DOOT_JSON_DATA_PATH, 'utf8'));
+    #isMessageOlderThanMaxAge(message, reactionHallOfDootMaxMessageAge) {
+        const messageCreatedTimestampMS = message.createdTimestamp;
+        return (messageCreatedTimestampMS / 1000) < (Date.now() / 1000) - reactionHallOfDootMaxMessageAge;
     }
 
-    #saveReactionJsonDataset(dataset) {
-        fs.writeFileSync(REACTION_HALL_OF_DOOT_JSON_DATA_PATH, JSON.stringify(dataset));
-    }
-
-    #calcMinEpochForMessage() {
-        const maxAgeWeeksInSeconds = REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_WEEKS * 7 * 24 * 60 * 60;
-        const maxAgeDaysInSeconds = REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_DAYS * 24 * 60 * 60;
-        const maxAgeHoursInSeconds = REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_HOURS * 60 * 60;
-        const maxAgeMinutesInSeconds = REACTION_HALL_OF_DOOT_MAX_MESSAGE_AGE_MINUTES * 60;
-        const epochDiff = maxAgeWeeksInSeconds + maxAgeDaysInSeconds + maxAgeHoursInSeconds + maxAgeMinutesInSeconds;
-        return Math.floor((Date.now() / 1000) - epochDiff);
-    }
-
-    async #sendMessageToHallOfDoot(message) {
+    async #sendMessageToHallOfDoot(message, hallOfDootChannelId) {
         const img = await this.#createHallOfDootImage(message);
         const messagePayload = {
             files: [
@@ -78,7 +63,7 @@ module.exports = class ReactionHallOfDoot {
             ],
             content: message.url
         };
-        this.client.channels.fetch(DOOMPOD_HALL_OF_DOOT_CHANNEL_ID).then((channel) => {
+        this.client.channels.fetch(hallOfDootChannelId).then((channel) => {
             channel.send(messagePayload);
         });
     }
@@ -120,4 +105,3 @@ module.exports = class ReactionHallOfDoot {
         });
     }
 };
-

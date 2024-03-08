@@ -5,7 +5,9 @@ module.exports = class ConfigService {
     #itsFridayInCaliforniaCron;
     #ladiesAndGentlemenTheWeekendCron;
     #itsWednesdayMyDudesCron;
-    #randomActuallyReplyPercentage
+    #randomActuallyReplyPercentage;
+    #databaseFile;
+
     constructor() {
     }
 
@@ -17,6 +19,7 @@ module.exports = class ConfigService {
         this.#ladiesAndGentlemenTheWeekendCron = config.ladiesAndGentlemenTheWeekendCron;
         this.#itsWednesdayMyDudesCron = config.itsWednesdayMyDudesCron;
         this.#randomActuallyReplyPercentage = config.randomActuallyReplyPercentage;
+        this.#databaseFile = config.databaseFile;
     }
 
     getToken() {
@@ -40,5 +43,9 @@ module.exports = class ConfigService {
 
     getRandomActuallyReplyPercentage() {
         return this.#randomActuallyReplyPercentage;
+    }
+
+    getDatabaseFile() {
+        return this.#databaseFile;
     }
 }
