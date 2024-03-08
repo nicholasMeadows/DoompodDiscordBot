@@ -21,6 +21,7 @@ const ChannelRepository = require('./repository/channel-repository');
 const MessageRepository = require('./repository/message-repository')
 const CronRepository = require('./repository/cron-repository');
 const EntityCreation = require('./repository/entity-creation')
+const {CONFIG_FILE} = require("./constants");
 
 if (!fs.existsSync(CONFIG_FILE)) {
     console.log(`${CONFIG_FILE} not found`)
