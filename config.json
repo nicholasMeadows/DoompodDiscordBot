@@ -1,8 +1,9 @@
 {
   "token": "MTE5MDEyNjk0MjgwOTIzOTU3Mg.GsXj6D.Df-LxpLSRbbLU1IIeZmNGkcJGHLzPboEeGrcjU",
   "clientId": "1190126942809239572",
-  "doompodSuckletCron": "0 08 * * *",
-  "itsFridayInCaliforniaCron": "0 9 * * 5",
-  "ladiesAndGentlemenTheWeekendCron": "0 17 * * 5",
-"itsWednesdayMyDudesCron": "0 9 * * 3"
+  "databaseName": "doompod",
+  "schemaName": "doombot",
+  "dbUser": "doombot",
+  "dbPassword" : "doombot",
+  "dbHost": "localhost"
 }

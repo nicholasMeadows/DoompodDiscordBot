@@ -1,0 +1,36 @@
+services:
+  postgres:
+    restart: unless-stopped
+    container_name: doompodDiscordBot-postgres
+    image: postgres
+    ports:
+      - '5432:${DB_PORT}'
+    volumes:
+      - ./db:/var/lib/postgresql/data
+    environment:
+      - PGUSER=${DB_USER}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+      - TZ=America/Chicago
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  bot:
+    container_name: doompodDiscordBot
+    restart: unless-stopped
+    image: nicholasmeadows/doompoddiscordbot
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - TZ=America/Chicago
+      - TOKEN=${TOKEN}
+      - CLIENT_ID=${CLIENT_ID}
+      - DB_NAME=${DB_NAME}
+      - SCHEMA_NAME=${SCHEMA_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}

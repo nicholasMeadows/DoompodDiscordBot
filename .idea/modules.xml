@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/DoompodDiscordBot.iml" filepath="$PROJECT_DIR$/.idea/DoompodDiscordBot.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/DoompodDiscordBotTS.iml" filepath="$PROJECT_DIR$/.idea/DoompodDiscordBotTS.iml" />
     </modules>
   </component>
 </project>
