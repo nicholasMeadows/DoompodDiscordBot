@@ -15,5 +15,6 @@ export default interface AutoReplyInfo {
     }[],
     replyWithText: string;
     replyWithAssets: BotAsset[],
-    replyWithStickers: Sticker[]
+    replyWithStickers: Sticker[],
+    randomizeAttachmentsSent: boolean
 }

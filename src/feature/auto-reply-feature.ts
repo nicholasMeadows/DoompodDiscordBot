@@ -62,7 +62,7 @@ export default class AutoReplyFeature {
             console.log('Trigger term not found in message');
             return;
         }
-        this.replyToMessage(message, autoReplyInfo.replyWithAssets, autoReplyInfo.replyWithStickers, autoReplyInfo.replyWithText);
+        this.replyToMessage(autoReplyInfo.randomizeAttachmentsSent, message, autoReplyInfo.replyWithAssets, autoReplyInfo.replyWithStickers, autoReplyInfo.replyWithText);
     }
 
     async handleAutoReplyForMessageReaction(message: Message, autoReplyInfo: AutoReplyInfo) {
@@ -122,19 +122,38 @@ export default class AutoReplyFeature {
         messageEntity.repliedToByAutoReplyObjectIds.push(autoReplyInfo._id);
         await messageRepository.saveMessage(message.guildId, channel.discordId, messageEntity);
 
-        this.replyToMessage(message, autoReplyInfo.replyWithAssets, autoReplyInfo.replyWithStickers, autoReplyInfo.replyWithText);
+        this.replyToMessage(autoReplyInfo.randomizeAttachmentsSent, message, autoReplyInfo.replyWithAssets, autoReplyInfo.replyWithStickers, autoReplyInfo.replyWithText);
     }
 
-    replyToMessage(message: Message, replyWithAssets: BotAsset[], replyWithStickers: Sticker[], replyWithText: string) {
+    replyToMessage(randomizeAttachmentsSent: boolean, message: Message, replyWithAssets: BotAsset[], replyWithStickers: Sticker[], replyWithText: string) {
         const paths: string[] = [];
-        if (replyWithAssets !== undefined && replyWithAssets.length > 0) {
-            paths.push(...replyWithAssets.map(asset => asset.path));
+        const stickerIds: string[] = [];
+
+        if (randomizeAttachmentsSent) {
+            if (replyWithAssets !== undefined && replyWithAssets.length > 0 && replyWithStickers !== undefined && replyWithStickers.length > 0) {
+                if (Math.random() < 0.5) {
+                    const assetIndex = Math.floor(Math.random() * replyWithAssets.length)
+                    paths.push(replyWithAssets[assetIndex].path);
+                } else {
+                    const assetIndex = Math.floor(Math.random() * replyWithStickers.length)
+                    stickerIds.push(replyWithStickers[assetIndex].discordId);
+                }
+            } else if (replyWithAssets !== undefined && replyWithAssets.length > 0) {
+                const assetIndex = Math.floor(Math.random() * replyWithAssets.length)
+                paths.push(replyWithAssets[assetIndex].path);
+            } else if (replyWithStickers !== undefined && replyWithStickers.length > 0) {
+                const assetIndex = Math.floor(Math.random() * replyWithStickers.length)
+                stickerIds.push(replyWithStickers[assetIndex].discordId);
+            }
+        } else {
+            if (replyWithAssets !== undefined && replyWithAssets.length > 0) {
+                paths.push(...replyWithAssets.map(asset => asset.path));
+            }
+            if (replyWithStickers !== undefined && replyWithStickers.length > 0) {
+                stickerIds.push(...replyWithStickers.map(sticker => sticker.discordId));
+            }
         }
 
-        const stickerIds: string[] = [];
-        if (replyWithStickers !== undefined && replyWithStickers.length > 0) {
-            stickerIds.push(...replyWithStickers.map(sticker => sticker.discordId));
-        }
         if (paths.length === 0 && stickerIds.length === 0 && (replyWithText === undefined || replyWithText.length === 0)) {
             console.log('Cannot reply. Not message content');
             return;
