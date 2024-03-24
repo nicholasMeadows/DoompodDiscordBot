@@ -1,40 +1,61 @@
+import {Collection, ObjectId, UpdateResult} from "mongodb";
 import User from "../entity/user";
-import Channel from "../entity/channel";
 import Guild from "../entity/guild";
 
 export default class UserRepository {
+    declare _guildChannelMessageCollection: Collection<Guild>;
 
-    findById(id: number) {
-        return User.findOne({
-            where:[{
-                id:id
-            }]
-        });
-    }
-    findByDiscordId(discordId: string) {
-        return User.findOne({
-            where:[{
-                discordId: discordId
-            }]
-        });
+    constructor(guildChannelMessageCollection: Collection<Guild>) {
+        this._guildChannelMessageCollection = guildChannelMessageCollection;
     }
 
-    findByUserDiscordIdAndGuildId(userDiscordId: string, guildId: number) {
-        return User.findOne({
-            where:[{
-                discordId: userDiscordId
-            }],
-            include:[{
-                model:Guild,
-                required: true,
-                where:[{
-                    id: guildId
-                }]
-            }]
+    findGuildUser(guildObjectId: ObjectId, userDiscordId: string) {
+        return this._guildChannelMessageCollection.aggregate<User>([
+            {
+                $match: {
+                    _id: guildObjectId
+                }
+            }, {
+                $project: {
+                    _id: 0,
+                    users: 1
+                }
+            }, {
+                $unwind: {
+                    path: "$users"
+                }
+            }, {
+                $match: {
+                    "users.discordUserId": userDiscordId
+                }
+            }, {
+                $replaceRoot: {
+                    newRoot: "$users"
+                }
+            }
+        ])
+    }
+
+    saveGuildUser(guildObjectId: ObjectId, user: User): Promise<UpdateResult<Guild>> {
+        return new Promise(async (resolve) => {
+            await this._guildChannelMessageCollection.updateOne({
+                _id: guildObjectId
+            }, {
+                $pull: {
+                    'users': {
+                        discordUserId: user.discordUserId
+                    }
+                }
+            });
+
+            const result = await this._guildChannelMessageCollection.updateOne({
+                _id: guildObjectId
+            }, {
+                $push: {
+                    users: user
+                }
+            });
+            resolve(result);
         })
-    }
-
-    save(user: User) {
-        return user.save();
     }
 }

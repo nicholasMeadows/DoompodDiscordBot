@@ -1,8 +1,9 @@
 import {ObjectId} from "mongodb";
 
-export default class User {
+export default class CronSchedule {
     declare _id: ObjectId;
-    declare discordUserId: string;
+    declare name: string;
+    declare schedule: string;
 
     constructor() {
         this._id = new ObjectId();

@@ -1,24 +1,22 @@
-import fs from "fs";
-import {JSON} from "sequelize";
-
 export default class Config {
 
     private declare readonly _token: string;
     private declare readonly _clientId: string;
-    private declare readonly _databaseName: string;
-    private declare readonly _schemaName: string;
-    private declare readonly _dbUser: string;
+    private declare readonly _dbName: string;
+    private declare readonly _dbUsername: string;
     private declare readonly _dbPassword: string;
+    private declare readonly _dbPort: number;
     private declare readonly _dbHost: string;
 
-    constructor(token: string, clientId: string, databaseName: string, schemaName: string, dbUser: string, dbPassword: string, dbHost: string) {
+    constructor(token: string, clientId: string, dbName: string,
+                dbUsername: string, dbPassword: string, dbPort: number, dbHost: string) {
         this._token = token;
         this._clientId = clientId;
-        this._databaseName = databaseName;
-        this._schemaName = schemaName;
-        this._dbUser = dbUser;
+        this._dbName = dbName;
+        this._dbUsername = dbUsername;
         this._dbPassword = dbPassword;
-        this._dbHost = dbHost;
+        this._dbPort = dbPort;
+        this._dbHost = dbHost
     }
 
 
@@ -30,20 +28,20 @@ export default class Config {
         return this._clientId;
     }
 
-    get databaseName(): string {
-        return this._databaseName;
+    get dbName(): string {
+        return this._dbName;
     }
 
-    get schemaName(): string {
-        return this._schemaName;
-    }
-
-    get dbUser(): string {
-        return this._dbUser;
+    get dbUsername(): string {
+        return this._dbUsername;
     }
 
     get dbPassword(): string {
         return this._dbPassword;
+    }
+
+    get dbPort(): number {
+        return this._dbPort;
     }
 
     get dbHost(): string {

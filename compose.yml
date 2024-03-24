@@ -1,36 +1,60 @@
 services:
-  postgres:
-    restart: unless-stopped
-    container_name: doompodDiscordBot-postgres
-    image: postgres
+  mongo:
+    image: mongo:4.4.9
+    restart: always
     ports:
-      - '5432:${DB_PORT}'
+      - 27017:27017
     volumes:
-      - ./db:/var/lib/postgresql/data
+      - ./db-mongo:/data/db
     environment:
-      - PGUSER=${DB_USER}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_NAME}
-      - TZ=America/Chicago
+      MONGO_INITDB_ROOT_USERNAME: ${DB_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_PASSWORD}
+      MONGO_INITDB_DATABASE: ${DB_NAME}
+    #    healthcheck:
+    #      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+    #      interval: 10s
+    #      timeout: 10s
+    #      retries: 5
+    #      start_period: 10s
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
+      test:
+        [
+          "CMD",
+          "mongo",
+          "--quiet",
+          "127.0.0.1/test",
+          "--eval",
+          "'quit(db.runCommand({ ping: 1 }).ok ? 0 : 2)'",
+        ]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
+      start_period: 40s
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${DB_USERNAME}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${DB_PASSWORD}
+      ME_CONFIG_MONGODB_URL: mongodb://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}
+    depends_on:
+      mongo:
+        condition: service_healthy
   bot:
     container_name: doompodDiscordBot
     restart: unless-stopped
     image: nicholasmeadows/doompoddiscordbot
     depends_on:
-      postgres:
+      mongo:
         condition: service_healthy
     environment:
       - TZ=America/Chicago
       - TOKEN=${TOKEN}
       - CLIENT_ID=${CLIENT_ID}
       - DB_NAME=${DB_NAME}
-      - SCHEMA_NAME=${SCHEMA_NAME}
-      - DB_USER=${DB_USER}
+      - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PORT=${DB_PORT}
       - DB_HOST=${DB_HOST}

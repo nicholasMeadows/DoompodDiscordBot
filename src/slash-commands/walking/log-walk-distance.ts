@@ -1,8 +1,7 @@
-import {AttachmentBuilder, ChatInputCommandInteraction, SlashCommandBuilder} from "discord.js";
-import path from "node:path";
-import {DOOMPOD_HUG1_2023_FILE, IMAGE_PATH} from "../../constants";
+import {ChatInputCommandInteraction, SlashCommandBuilder} from "discord.js";
 import DiscordClient from "../../model/discord-client";
 import WalkCompetitionFeature from "../../feature/walk-competition-feature";
+import {Repositories} from "../../model/mongo-db-info";
 
 export default {
     data: new SlashCommandBuilder()
@@ -12,10 +11,10 @@ export default {
             .setName('miles')
             .setDescription('the number of miles you walked today')
             .setRequired(true)),
-    async execute(discordClient: DiscordClient, interaction: ChatInputCommandInteraction) {
+    async execute(discordClient: DiscordClient, repositories: Repositories, interaction: ChatInputCommandInteraction) {
         await interaction.deferReply();
-        const walkCompetitionFeature = new WalkCompetitionFeature(discordClient);
+        const walkCompetitionFeature = new WalkCompetitionFeature(discordClient, repositories);
         const responseMsg = await walkCompetitionFeature.logWalking(interaction)
-        interaction.editReply({content:responseMsg});
+        interaction.editReply({content: responseMsg});
     },
 };

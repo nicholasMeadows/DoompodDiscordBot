@@ -1,22 +1,74 @@
+import {Collection, ObjectId} from "mongodb";
 import MinecraftReference from "../entity/minecraft-reference";
 import Guild from "../entity/guild";
 
-export default class MinecraftReferenceRepository {
-    findMostRecentMinecraftReferenceByGuildId(guildId: number) {
-        return MinecraftReference.findOne({
-            include:[{
-                model: Guild,
-                required: true,
-                where:[{
-                    id: guildId
-                }]
-            }],
-            order:[['createdAt', 'DESC']],
-            limit: 1
+export class MinecraftReferenceRepository {
+    declare _guildChannelMessageCollection: Collection<Guild>;
+
+    constructor(guildChannelMessageCollection: Collection<Guild>) {
+        this._guildChannelMessageCollection = guildChannelMessageCollection;
+    }
+
+    findMostRecentMinecraftReference(guildObjectId: ObjectId) {
+        return this._guildChannelMessageCollection.aggregate<MinecraftReference>([
+            {
+                $match: {
+                    _id: guildObjectId
+                }
+            }, {
+                $project: {
+                    _id: 0,
+                    minecraftReferences: 1
+                }
+            }, {
+                $unwind: {
+                    path: "$minecraftReferences"
+                }
+            }, {
+                $replaceRoot: {
+                    newRoot: "$minecraftReferences"
+                }
+            }, {
+                $sort: {
+                    referenceMadeTimestamp: -1
+                }
+            }, {
+                $limit: 1
+            }
+        ])
+    }
+
+    findMinecraftReferenceRecord(guildObjectId: ObjectId) {
+        return this._guildChannelMessageCollection.aggregate<{ minecraftReferenceRecord: number }>([
+            {
+                $match: {
+                    _id: guildObjectId
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    minecraftReferenceRecord: 1
+                }
+            }
+        ])
+    }
+
+    saveMinecraftReferenceRecord(guildObjectId: ObjectId, referenceRecord: number) {
+        return this._guildChannelMessageCollection.updateOne({
+            _id: guildObjectId
+        }, {
+            $set: {
+                minecraftReferenceRecord: referenceRecord
+            }
         })
     }
 
-    save(minecraftReference: MinecraftReference) {
-        return minecraftReference.save();
+    saveMinecraftReference(guildObjectId: ObjectId, minecraftReference: MinecraftReference) {
+        return this._guildChannelMessageCollection.updateOne({
+            _id: guildObjectId
+        }, {
+            $push: {minecraftReferences: minecraftReference}
+        })
     }
 }

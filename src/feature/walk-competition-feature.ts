@@ -1,22 +1,19 @@
-import {ChatInputCommandInteraction, ApplicationCommandOptionType, TextChannel} from "discord.js";
-import GuildRepository from "../repository/guild-repository";
-import GuildConverter from "../converter/guild-converter";
-import UserRepository from "../repository/user-repository";
-import UserConverter from "../converter/user-converter";
-import UserWalkLogging from "../entity/user-walk-logging";
-import UserWalkLoggingRepository from "../repository/user-walk-logging-repository";
-import {isInt} from "validator";
-import GuildUserRepository from "../repository/guild-user-repository";
-import GuildUser from "../entity/guild-user";
-import Cron from "../entity/cron";
-import ChannelRepository from "../repository/channel-repository";
 import DiscordClient from "../model/discord-client";
+import {ApplicationCommandOptionType, ChatInputCommandInteraction, TextChannel} from "discord.js";
+import {Repositories} from "../model/mongo-db-info";
+import Guild from "../entity/guild";
+import {ObjectId} from "mongodb";
+import User from "../entity/user";
+import UserWalkLog from "../entity/user-walk-log";
+import GuildChannelCronInfo from "../model/guild-channel-cron-info";
 
 export default class WalkCompetitionFeature {
     private _discordClient: DiscordClient;
+    private _repositories: Repositories;
 
-    constructor(discordClient: DiscordClient) {
+    constructor(discordClient: DiscordClient, repositories: Repositories) {
         this._discordClient = discordClient;
+        this._repositories = repositories;
     }
 
     async logWalking(interaction: ChatInputCommandInteraction): Promise<string> {
@@ -24,202 +21,199 @@ export default class WalkCompetitionFeature {
         const guildId = interaction.guildId;
         if (guildId === null) {
             console.log('interaction didnt have guildId');
-            return 'Something went wrong... @Fluffy get over here and fix yo shit!';
+            return 'Command not run in a guild. Cannot process request';
         }
 
-        const guildRepository = new GuildRepository();
-        let guild = await guildRepository.findByDiscordId(guildId);
-        if (guild === null) {
-            guild = new GuildConverter().convert(guildId);
-            guild = await guildRepository.save(guild);
+        const guildRepository = this._repositories.guildRepository;
+        const userRepository = this._repositories.userRepository;
+        const walkLogRepository = this._repositories.walkLogRepository;
+
+        let guildObjectIdObj = await guildRepository.findGuildObjectIdByGuildDiscordId(guildId).next();
+        let guildObjectId: ObjectId;
+        if (guildObjectIdObj === null || guildObjectIdObj.guildObjectId === null) {
+            const guild = new Guild();
+            guild.discordId = guildId;
+            await guildRepository.saveGuild(guild);
+            guildObjectId = guild._id;
+        } else {
+            guildObjectId = guildObjectIdObj.guildObjectId;
         }
 
-        const userRepository = new UserRepository();
-        let user = await userRepository.findByUserDiscordIdAndGuildId(authorId, guild.id)
+        let user = await userRepository.findGuildUser(guildObjectId, authorId).next()
         if (user === null) {
-            const userConverter = new UserConverter();
-            user = userConverter.convert(authorId);
-            user = await userRepository.save(user);
+            user = new User();
+            user.discordUserId = authorId;
+            await userRepository.saveGuildUser(guildObjectId, user);
         }
 
         const milesOption = interaction.options.get('miles');
-        if(milesOption === null || milesOption.value === undefined) {
+        if (milesOption === null || milesOption.value === undefined) {
             return 'You did not give miles as part of the command.'
         }
         const miles = milesOption.value;
-        if(milesOption.type !== ApplicationCommandOptionType.Integer) {
+        if (milesOption.type !== ApplicationCommandOptionType.Integer) {
             return 'miles was not a number';
         }
-        let userWalkLogging = new UserWalkLogging();
-        userWalkLogging.guildId = guild.id;
-        userWalkLogging.userId = user.id;
-        userWalkLogging.milesLogged = miles as number;
-        const userWalkLoggingRepo = new UserWalkLoggingRepository()
-        userWalkLogging = await userWalkLoggingRepo.save(userWalkLogging);
+        let userWalkLog = new UserWalkLog();
+        userWalkLog.milesLogged = miles as number;
+        userWalkLog.user = user._id;
+        await walkLogRepository.insertUserWalkLog(guildObjectId, userWalkLog);
         return `logged ${miles} miles`
     }
 
     async myMiles(interaction: ChatInputCommandInteraction): Promise<string> {
-        const authorId = interaction.user.id.trim();
+        const authorId = interaction.user.id
         const guildId = interaction.guildId;
         if (guildId === null) {
             console.log('interaction didnt have guildId');
-            return 'Something went wrong...';
+            return 'Command not run in a guild. Cannot process request';
         }
 
-        const guildRepository = new GuildRepository();
-        let guild = await guildRepository.findByDiscordId(guildId);
-        if (guild === null) {
+        const guildRepository = this._repositories.guildRepository;
+        const walkLogRepository = this._repositories.walkLogRepository;
+        const userRepository = this._repositories.userRepository;
+        const guildObjectIdObj = await guildRepository.findGuildObjectIdByGuildDiscordId(guildId).next();
+
+        if (guildObjectIdObj === null || guildObjectIdObj.guildObjectId === null) {
             console.log(`Guild ${guildId} was not found in db`)
             return `<@${authorId}> you have walked 0 miles.`
         }
 
-
-        const userRepository = new UserRepository();
-        let user = await userRepository.findByUserDiscordIdAndGuildId(authorId, guild.id)
+        let user = await userRepository.findGuildUser(guildObjectIdObj.guildObjectId, authorId).next();
         if (user === null) {
-            const userConverter = new UserConverter();
-            user = userConverter.convert(authorId);
-            user = await userRepository.save(user);
-
-            const guildUserRepository = new GuildUserRepository();
-            const guildUser = new GuildUser();
-            guildUser.guildId = guild.id;
-            guildUser.userId = user.id;
-            await guildUserRepository.save(guildUser);
-            console.log(`Guild ${guildId} was not found in db`)
+            user = new User();
+            user.discordUserId = authorId;
+            await userRepository.saveGuildUser(guildObjectIdObj.guildObjectId, user);
+            console.log(`User ${authorId} was not found in db`)
             return `<@${authorId}> you have walked 0 miles.`
         }
 
         const now = new Date();
-        const userWalkLogginRepo = new UserWalkLoggingRepository();
-        const totalMiles = await userWalkLogginRepo.findUserWalkLogsTotalsByGuildIdUserIdMonthAndYearLimit1(guild.id, user.id, now.getFullYear(), now.getMonth()+1);
-
-        if(totalMiles === null || totalMiles === undefined || totalMiles.length === 0) {
+        const currentMonthNumber = now.getMonth();
+        const endMonth = currentMonthNumber === 11 ? 1 : currentMonthNumber + 1;
+        const startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+        const endDate = new Date(now.getFullYear(), endMonth, 1, 0, 0, 0, 0);
+        const totalMiles = await walkLogRepository.findTotalMilesForMonthForUser(guildObjectIdObj.guildObjectId, user._id, startDate, endDate).next()
+        if (totalMiles === null || totalMiles.totalMiles === null) {
             return `<@${authorId}> you have walked 0 miles.`
         }
-        return `<@${authorId}> you have walked ${totalMiles[0].dataValues.total} miles.`
+        return `<@${authorId}> you have walked ${totalMiles.totalMiles} miles.`
     }
 
-    async handlePostWalkingResultsCron(cronEntity: Cron) {
-        const guildId = cronEntity.guildId;
-        const guildRepo = new GuildRepository();
-        const guild = await guildRepo.findById(guildId)
-        if(guild === null || guild.walkLoggingCompetitionResultsChannelId === undefined){
-            return
+    async handlePostWalkingResultsCron(guildChannelCronInfo: GuildChannelCronInfo) {
+        const walkLogRepository = this._repositories.walkLogRepository;
+        const guildObjectId = guildChannelCronInfo.guildObjectId;
+
+        const walkChannelDiscordIdObj = await walkLogRepository.findWalkLogMonthResultsChannelForGuildObjectId(guildObjectId).next();
+        if (walkChannelDiscordIdObj === null || walkChannelDiscordIdObj.discordId === null) {
+            console.log('Could not find which channel to send walk month results to.');
+            return;
         }
 
         const now = new Date();
-        let month = now.getMonth()+1;
-        let year = now.getFullYear()
-        if(month == 1) {
-            month = 12;
-            year -= 1;
+        let year = now.getFullYear();
+        let month = now.getMonth();
+        if (month == 0) {
+            month = 11;
+            year--;
         } else {
-            month -= 1;
+            month--;
         }
 
-        const userWalkLoggingRepository = new UserWalkLoggingRepository();
-        const groupedTotals = (await userWalkLoggingRepository.findUserWalkLogsTotalsByGuildIdMonthAndYearLimit3(guildId, year, month)).map(entity => entity.dataValues)
-        this.sortGroupedWalkTotals(groupedTotals);
+        const startDate = new Date(year, month, 1, 0, 0, 0, 0);
+        const endDate = new Date(now.getFullYear(), now.getMonth(), 0, 0, 0, 0);
 
-        const walkLoggingCompetitionResultsChannelId = guild.walkLoggingCompetitionResultsChannelId;
-        const channel = await new ChannelRepository().findById(walkLoggingCompetitionResultsChannelId);
-        if(channel === null) {
+        const walkResultsSorted = await walkLogRepository.findTopWalkersForMonth(guildObjectId, startDate, endDate).toArray();
+        if (walkResultsSorted === null || walkResultsSorted.length === 0) {
+            console.log('No walk results found!');
             return;
         }
 
         let placeCounter: number = 1;
         let message = '@everyone Time for the walking results!!!!!';
 
-        const userRepository = new UserRepository();
-        for(const total of groupedTotals) {
+        for (const result of walkResultsSorted) {
+            const userId = result.user.discordUserId;
+            const totalMiles = result.totalMiles;
 
-            const userId = total.userId;
-            const totalMiles = total.total;
-            const user = await userRepository.findById(userId);
-            if(user != null) {
-                let numberEnding='';
-                if(placeCounter === 1) {
-                    numberEnding = 'st'
-                } else if(placeCounter === 2) {
-                    numberEnding = 'nd'
-                } else if(placeCounter === 3) {
-                    numberEnding = 'rd'
-                }
-                message += `\nIn ${placeCounter}${numberEnding} we have <@${user.discordId}> with ${totalMiles} ${totalMiles == 1 ? "mile":"miles"}!!!!`;
-                placeCounter++;
+            let numberEnding = '';
+            if (placeCounter === 1) {
+                numberEnding = 'st'
+            } else if (placeCounter === 2) {
+                numberEnding = 'nd'
+            } else if (placeCounter === 3) {
+                numberEnding = 'rd'
             }
+            message += `\nIn ${placeCounter}${numberEnding} we have <@${userId}> with ${totalMiles} ${totalMiles == 1 ? "mile" : "miles"}!!!!`;
+            placeCounter++;
         }
 
-        const discordChannel = await this._discordClient.channels.fetch(channel.discordId);
-        if(discordChannel !== null) {
-            (discordChannel as TextChannel).send({content: message});
+        const discordChannel = await this._discordClient.channels.fetch(walkChannelDiscordIdObj.discordId);
+        if (discordChannel !== null) {
+            await (discordChannel as TextChannel).send({content: message});
         }
     }
 
-    async getTop3AlongWithMyMiles(interaction: ChatInputCommandInteraction) {
-        const guildDiscordId = interaction.guildId;
-        if(guildDiscordId === null) {
-            return "Something went wrong pulling data."
+    async getTop3AlongWithMyMiles(interaction: ChatInputCommandInteraction): Promise<string> {
+        const authorId = interaction.user.id
+        const guildId = interaction.guildId;
+        if (guildId === null) {
+            console.log('interaction didnt have guildId');
+            return 'Command not run in a guild. Cannot process request';
         }
-        const guildRepository = new GuildRepository();
-        const guild = await guildRepository.findByDiscordId(guildDiscordId);
-        if(guild === null) {
-            return "No walking data found.";
+
+        const guildRepository = this._repositories.guildRepository;
+        const walkLogRepository = this._repositories.walkLogRepository;
+        const userRepository = this._repositories.userRepository;
+
+        const guildObjectIdObj = await guildRepository.findGuildObjectIdByGuildDiscordId(guildId).next();
+        if (guildObjectIdObj === null || guildObjectIdObj.guildObjectId === null) {
+            console.log(`Guild ${guildId} was not found in db`)
+            return `Could not find top walking data.`
         }
 
         const now = new Date();
-        let month = now.getMonth()+1;
+        let month = now.getMonth();
         let year = now.getFullYear();
 
-        const userWalkLoggingRepository = new UserWalkLoggingRepository();
-        const groupedTotals = (await userWalkLoggingRepository.findUserWalkLogsTotalsByGuildIdMonthAndYearLimit3(guild.id, year, month)).map(entity => entity.dataValues)
-        this.sortGroupedWalkTotals(groupedTotals);
-
+        if (month == 11) {
+            month = 0
+            year++;
+        } else {
+            month++;
+        }
+        const startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+        const endDate = new Date(year, month, 1, 0, 0, 0, 0)
+        const topWalkData = await walkLogRepository.findTopWalkersForMonth(guildObjectIdObj.guildObjectId, startDate, endDate).toArray()
         let placeCounter: number = 1;
         let message = '';
 
-        const userRepository = new UserRepository();
-        for(const total of groupedTotals) {
+        for (const total of topWalkData) {
+            const userId = total.user.discordUserId;
+            const totalMiles = total.totalMiles;
+            let numberEnding = '';
+            if (placeCounter === 1) {
+                numberEnding = 'st'
+            } else if (placeCounter === 2) {
+                numberEnding = 'nd'
+            } else if (placeCounter === 3) {
+                numberEnding = 'rd'
+            }
+            message += `\nRight now in ${placeCounter}${numberEnding} place is <@${userId}> with ${totalMiles} ${totalMiles == 1 ? "mile" : "miles"}!!!!`;
+            placeCounter++;
+        }
 
-            const userId = total.userId;
-            const totalMiles = total.total;
-            const user = await userRepository.findById(userId);
-            if(user != null) {
-                let numberEnding='';
-                if(placeCounter === 1) {
-                    numberEnding = 'st'
-                } else if(placeCounter === 2) {
-                    numberEnding = 'nd'
-                } else if(placeCounter === 3) {
-                    numberEnding = 'rd'
-                }
-                message += `\nRight now in ${placeCounter}${numberEnding} place is <@${user.discordId}> with ${totalMiles} ${totalMiles == 1 ? "mile":"miles"}!!!!`;
-                placeCounter++;
+        const userDiscordId = interaction.user.id;
+        const user = await userRepository.findGuildUser(guildObjectIdObj.guildObjectId, userDiscordId).next();
+        if (user !== null) {
+            const userWalkLogsTotalMiles = await walkLogRepository.findTotalMilesForMonthForUser(guildObjectIdObj.guildObjectId, user._id, startDate, endDate).next()
+            if (userWalkLogsTotalMiles !== null) {
+                message += `\n\n <@${user.discordUserId}> you currently logged ${userWalkLogsTotalMiles.totalMiles} ${userWalkLogsTotalMiles.totalMiles === 1 ? 'mile' : 'miles'}`
             }
         }
-        const userDiscordId = interaction.user.id;
-        const user = await userRepository.findByDiscordId(userDiscordId);
-        if(user !== null) {
-            const userWalkLoggings = await userWalkLoggingRepository.findUserWalkLogsTotalsByGuildIdUserIdMonthAndYearLimit1(guild.id, user.id, year, month);
-            const totals = userWalkLoggings.map(entity => entity.dataValues);
-            if(totals.length > 0) {
-                const totalMiles = totals[0].total
-                message += `\n\n <@${user.discordId}> you currently logged ${totalMiles} ${totalMiles === 1 ? 'mile':'miles'}`
-            }
+        if (message.length == 0) {
+            return 'No walk data found.';
         }
         return message;
-    }
-
-    private sortGroupedWalkTotals(groupedTotals: Array<any>) {
-        groupedTotals.sort((a,b) => {
-            if(a.total < b.total) {
-                return 1;
-            } else if(a.total > b.total) {
-                return -1;
-            }
-            return 0;
-        })
     }
 }

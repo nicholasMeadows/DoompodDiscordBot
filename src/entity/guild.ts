@@ -1,60 +1,25 @@
-import {
-    AutoIncrement,
-    BelongsTo,
-    BelongsToMany,
-    Column,
-    ForeignKey,
-    HasMany,
-    HasOne,
-    Model,
-    NotNull, PrimaryKey,
-    Table
-} from "sequelize-typescript";
 import Channel from "./channel";
-import Cron from "./cron";
-import Sticker from "./sticker";
+import {ObjectId} from "mongodb";
 import AutoReply from "./auto-reply";
 import HallOfDootConfig from "./hall-of-doot-config";
+import MinecraftReference from "./minecraft-reference";
 import User from "./user";
-import GuildUser from "./guild-user";
-import UserWalkLogging from "./user-walk-logging";
+import UserWalkLog from "./user-walk-log";
 
-@Table({tableName:"guild"})
-export default class Guild extends Model {
-    @Column({allowNull: false})
-    declare discordId: string;
-
-    @Column
+export default class Guild {
+    declare _id: ObjectId;
     declare name: string;
-
-    @Column
-    declare minecraftReferenceRecord: number;
-
-    @HasMany(() => Channel)
+    declare discordId: string;
     declare channels: Channel[];
-
-    @HasMany(() => Cron)
-    declare crons: Cron[];
-
-    @HasMany(() => Sticker)
-    declare stickers: Sticker[];
-
-    @HasMany(() => AutoReply)
     declare autoReplies: AutoReply[];
-
-    @HasOne(() => HallOfDootConfig)
     declare hallOfDootConfig: HallOfDootConfig;
-
-    @BelongsToMany(() => User, () => GuildUser)
+    declare minecraftReferences: MinecraftReference[];
     declare users: User[];
+    declare minecraftReferenceRecord: number;
+    declare userWalkLogs: UserWalkLog[];
+    declare walkLoggingCompetitionResultsChannelObjectId: ObjectId;
 
-    @HasMany(() => UserWalkLogging)
-    declare userWalkLogs: UserWalkLogging[];
-
-    @ForeignKey(() => Channel)
-    @Column
-    declare walkLoggingCompetitionResultsChannelId: number;
-
-    @BelongsTo(() => Channel)
-    declare walkLoggingCompetitionResultsChannel: Channel;
+    constructor() {
+        this._id = new ObjectId();
+    }
 }

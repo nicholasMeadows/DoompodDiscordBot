@@ -1,180 +1,149 @@
-import DiscordClient from "../model/discord-client";
-import {
-    Message,
-    MessageReaction as DiscordMessageReaction,
-    MessageReplyOptions, PartialMessage,
-    PartialMessageReaction
-} from "discord.js";
+import {Message, MessageReaction, PartialMessageReaction} from "discord.js";
 import AutoReplyTrigger from "../model/enum/auto-reply-trigger";
-import AutoReplyRepository from "../repository/auto-reply-repository";
-import GuildRepository from "../repository/guild-repository";
-import ChannelMessageRepository from "../repository/channel-message-repository";
-import ChannelMessageConverter from "../converter/channel-message-converter";
-import ChannelMessageAutoReply from "../entity/channel-message-auto-reply";
-import ChannelMessageAutoReplyRepository from "../repository/channel-message-auto-reply-repository";
-import AutoReply from "../entity/auto-reply";
-import ChannelConverter from "../converter/channel-converter";
-import ChannelRepository from "../repository/channel-repository";
-import Guild from "../entity/guild";
+import {Repositories} from "../model/mongo-db-info";
+import AutoReplyInfo from "../model/auto-reply-info";
+import BotAsset from "../entity/bot-asset";
+import Sticker from "../entity/sticker";
+import Channel from "../entity/channel";
+import MessageEntity from "../entity/message"
 
 export default class AutoReplyFeature {
-    private _discordClient: DiscordClient;
+    private _repositories: Repositories;
 
-    constructor(discordClient: DiscordClient) {
-        this._discordClient = discordClient;
+    constructor(repositories: Repositories) {
+        this._repositories = repositories;
     }
 
-    handle(inputs: { message?: Message, messageReaction?: DiscordMessageReaction | PartialMessageReaction }) {
-        const message = inputs.message;
-        if (message !== undefined) {
-            this.handleMessage(message);
+    async handleMessageCreate(message: Message<boolean>) {
+        this.handle(await message.fetch(true), AutoReplyTrigger.MESSAGE_CONTENT);
+    }
+
+    async handleMessageReactionAdd(interaction: MessageReaction | PartialMessageReaction) {
+        this.handle(await interaction.message.fetch(true), AutoReplyTrigger.MESSAGE_REACTION);
+    }
+
+    private async handle(message: Message, autoReplyTrigger: AutoReplyTrigger) {
+        const guildDiscordId = message.guildId;
+        if (guildDiscordId === null) {
+            console.log(`Guild ${guildDiscordId} was not found on discord message.`);
+            return;
         }
-        const messageReaction = inputs.messageReaction;
-        if (messageReaction !== undefined) {
-            this.handleMessageReaction(messageReaction);
+        const guildRepository = this._repositories.guildRepository;
+        const autoReplyInfos = await guildRepository.findAutoRepliesByGuildDiscordIdAndAutoReplyTrigger(guildDiscordId, autoReplyTrigger).toArray();
+        if (autoReplyInfos === undefined || autoReplyInfos.length == 0) {
+            console.log(`No auto replies found for guild id ${guildDiscordId} and trigger type ${autoReplyTrigger}`);
+            return;
+        }
+        for (const autoReplyInfo of autoReplyInfos) {
+            switch (autoReplyTrigger) {
+                case AutoReplyTrigger.MESSAGE_CONTENT:
+                    this.handleAutoReplyForMessageContent(message, autoReplyInfo);
+                    break;
+                case AutoReplyTrigger.MESSAGE_REACTION:
+                    this.handleAutoReplyForMessageReaction(message, autoReplyInfo);
+                    break;
+            }
         }
     }
 
-    private async handleMessage(message: Message) {
+    async handleAutoReplyForMessageContent(message: Message, autoReplyInfo: AutoReplyInfo) {
+        const replyChancePercentage = autoReplyInfo.replyChancePercentage;
+        if (Math.random() > replyChancePercentage / 100) {
+            console.log("Reply chance not met");
+            return;
+        }
+        const triggerTerms = autoReplyInfo.triggerTerms;
+        if (triggerTerms === undefined) {
+            console.log('No defined trigger terms');
+            return;
+        }
         const messageContent = message.content.toLowerCase();
-        const guildId = message.guildId;
-        if (guildId === null) {
-            console.log(`Message ${message.id} did not have guildId.`)
+        if (!triggerTerms.some(term => messageContent.includes(term.toLowerCase()))) {
+            console.log('Trigger term not found in message');
             return;
         }
-        const guildRepository = new GuildRepository();
-        const channelMessageRepository = new ChannelMessageRepository();
+        this.replyToMessage(message, autoReplyInfo.replyWithAssets, autoReplyInfo.replyWithStickers, autoReplyInfo.replyWithText);
+    }
 
-        const guild = await guildRepository.findByDiscordId(guildId);
-        if (guild === null) {
-            console.log(`Guild ${guildId} was not found.`)
+    async handleAutoReplyForMessageReaction(message: Message, autoReplyInfo: AutoReplyInfo) {
+        if (message.guildId === null) {
             return;
         }
 
-        const autoReplyRepository = new AutoReplyRepository();
-        const autoReplies = await autoReplyRepository.findByGuildIdAndTriggerType(guild.id, AutoReplyTrigger.MESSAGE_CONTENT)
-        for (const autoReply of autoReplies) {
-            if (Math.random() < autoReply.replyChancePercentage / 100) {
-                const messagesAlreadyRepliedTo = await channelMessageRepository.findByDiscordIdAndAutoReplyId(message.id, autoReply.id);
-                if (messagesAlreadyRepliedTo.length === 0) {
-                    const triggerTerms = autoReply.triggerTerms.split(',');
-                    let foundTriggerTerm: string | undefined;
-                    for (const triggerTerm of triggerTerms) {
-                        if (messageContent.includes(triggerTerm.toLowerCase())) {
-                            foundTriggerTerm = triggerTerm;
-                            break;
-                        }
-                    }
-                    if (foundTriggerTerm !== undefined) {
-                        await this.sendAutoReaction(autoReply, message, guild);
-                    }
-                }
+        const channelRepository = this._repositories.channelRepository;
+        const messageRepository = this._repositories.messageRepository;
+        const messageAlreadyRepliedTo = await messageRepository.findMessageByGuildChannelMessageReactionId(message.guildId, message.channelId, message.id, autoReplyInfo._id).next();
+        if (messageAlreadyRepliedTo !== null) {
+            console.log('Message was already replied to.')
+            return;
+        }
+
+        if (Math.random() > autoReplyInfo.replyChancePercentage / 100) {
+            console.log('Percentage not met')
+            return;
+        }
+
+        const requiredReactions = autoReplyInfo.requiredReactionsForReply;
+        if (requiredReactions === undefined || requiredReactions.length === 0) {
+            console.log('no required reactions found');
+            return;
+        }
+
+        const messageReactions = message.reactions.cache;
+        for (const requiredReaction of requiredReactions) {
+            const messageReaction = messageReactions.get(requiredReaction.reactionKey);
+            if (messageReaction === undefined) {
+                console.log('Reaction requirment not met');
+                return;
+            }
+            if (messageReaction.count < requiredReaction.reactionCount) {
+                console.log('Not enough reactions for this reply');
+                return;
             }
         }
+
+
+        let channel = await channelRepository.findChannelByChannelDiscordId(message.channelId).next();
+        if (channel === null) {
+            channel = new Channel();
+            channel.discordId = message.channelId;
+            await channelRepository.saveChannel(message.guildId, channel);
+        }
+
+        let messageEntity = await messageRepository.findMessageByGuildChannelMessageId(message.guildId, channel.discordId, message.id).next();
+        if (messageEntity === null) {
+            messageEntity = new MessageEntity();
+            messageEntity.discordId = message.id;
+        }
+
+        if (messageEntity.repliedToByAutoReplyObjectIds === undefined) {
+            messageEntity.repliedToByAutoReplyObjectIds = [];
+        }
+        messageEntity.repliedToByAutoReplyObjectIds.push(autoReplyInfo._id);
+        await messageRepository.saveMessage(message.guildId, channel.discordId, messageEntity);
+
+        this.replyToMessage(message, autoReplyInfo.replyWithAssets, autoReplyInfo.replyWithStickers, autoReplyInfo.replyWithText);
     }
 
-    private async handleMessageReaction(messageReaction: DiscordMessageReaction | PartialMessageReaction) {
-        const message = messageReaction.message;
-        const messageId = message.id;
-        const guildId = message.guildId;
-        if (guildId === null) {
-            console.log('Missing guild id on message reaction');
+    replyToMessage(message: Message, replyWithAssets: BotAsset[], replyWithStickers: Sticker[], replyWithText: string) {
+        const paths: string[] = [];
+        if (replyWithAssets !== undefined && replyWithAssets.length > 0) {
+            paths.push(...replyWithAssets.map(asset => asset.path));
+        }
+
+        const stickerIds: string[] = [];
+        if (replyWithStickers !== undefined && replyWithStickers.length > 0) {
+            stickerIds.push(...replyWithStickers.map(sticker => sticker.discordId));
+        }
+        if (paths.length === 0 && stickerIds.length === 0 && (replyWithText === undefined || replyWithText.length === 0)) {
+            console.log('Cannot reply. Not message content');
             return;
         }
 
-        const guildRepository = new GuildRepository();
-        const autoReplyRepository = new AutoReplyRepository();
-        const channelMessageRepository = new ChannelMessageRepository();
-
-        const guild = await guildRepository.findByDiscordId(guildId);
-        if (guild === null) {
-            console.log(`handleMessageReaction - Guild ID ${guildId} not found.`);
-            return;
-        }
-
-        const fullMessage = await message.fetch(true);
-        const currentFullMessageReactions = fullMessage.reactions.cache;
-
-        const autoReplies = await autoReplyRepository.findByGuildIdAndTriggerType(guild.id, AutoReplyTrigger.MESSAGE_REACTION);
-        for (const autoReply of autoReplies) {
-            if (Math.random() < autoReply.replyChancePercentage / 100) {
-                const messagesAlreadyRepliedTo = await channelMessageRepository.findByDiscordIdAndAutoReplyId(messageId, autoReply.id);
-                if (messagesAlreadyRepliedTo.length === 0) {
-                    const autoReplyMessageReactions = await autoReply.$get('autoReplyMessageReaction');
-                    for (const autoReplyMessageReaction of autoReplyMessageReactions) {
-                        const reactionsToTriggerReply = autoReplyMessageReaction.reactionsToTriggerReply;
-                        const messageReaction = await autoReplyMessageReaction.$get('messageReaction');
-                        if (messageReaction === null) {
-                            break;
-                        }
-                        let discordReaction: DiscordMessageReaction | undefined;
-                        if (messageReaction.stickerId !== null) {
-                            const sticker = await messageReaction.$get('sticker');
-                            if (sticker !== null) {
-                                const stickerId = sticker.stickerId
-                                discordReaction = currentFullMessageReactions.get(stickerId);
-                            }
-                        } else {
-                            discordReaction = currentFullMessageReactions.get(messageReaction.reactionName)
-                        }
-
-                        if (discordReaction === undefined) {
-                            console.log(`Required reaction not found.`);
-                            break;
-                        }
-                        if (reactionsToTriggerReply > discordReaction.count) {
-                            console.log(`Required reaction found but not enough to trigger reply.`)
-                            break;
-                        }
-
-                        await this.sendAutoReaction(autoReply, fullMessage, guild);
-                    }
-                }
-            }
-        }
-    }
-
-    private async sendAutoReaction(autoReply: AutoReply, message: Message | PartialMessage, guild: Guild) {
-        const channelConverter = new ChannelConverter();
-        let channel = channelConverter.convert(message);
-        channel.guildId = guild?.id;
-        channel = (await new ChannelRepository().upsert(channel))[0];
-
-        const channelMessageConverter = new ChannelMessageConverter();
-        let channelMessage = channelMessageConverter.convert(message);
-        channelMessage.channelId = channel.id;
-        channelMessage = (await new ChannelMessageRepository().upsert(channelMessage))[0];
-
-        const channelMessageAutoReply = new ChannelMessageAutoReply();
-        channelMessageAutoReply.autoReplyId = autoReply.id;
-        channelMessageAutoReply.channelMessageId = channelMessage.id;
-        await new ChannelMessageAutoReplyRepository().upsert(channelMessageAutoReply);
-
-        await this.sendDiscordMessageReaction(autoReply, message);
-
-    }
-
-    private async sendDiscordMessageReaction(autoReplyEntity: AutoReply, message: Message | PartialMessage) {
-        const messageReplyOptions: MessageReplyOptions = {};
-        const replyWithText = autoReplyEntity.replyWithText;
-        if (replyWithText !== undefined) {
-            messageReplyOptions.content = replyWithText;
-        }
-
-        const replyWithAssets = await autoReplyEntity.$get('replyWithAssets');
-        if (replyWithAssets !== undefined) {
-            messageReplyOptions.files = replyWithAssets.map(botAsset => botAsset.path);
-        }
-
-        const replyWithStickers = await autoReplyEntity.$get('replyWithStickers');
-        if (replyWithStickers !== undefined) {
-            messageReplyOptions.stickers = replyWithStickers.map(sticker => sticker.stickerId);
-        }
-
-        if (messageReplyOptions.content == undefined && messageReplyOptions.files == undefined && messageReplyOptions.stickers == undefined) {
-            console.log('Discord message reply content, files, and stickers were undefined')
-            return;
-        }
-        await message.reply(messageReplyOptions);
+        message.reply({
+            content: replyWithText,
+            files: paths,
+            stickers: stickerIds
+        })
     }
 }

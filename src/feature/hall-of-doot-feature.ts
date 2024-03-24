@@ -1,99 +1,83 @@
 import DiscordClient from "../model/discord-client";
-import {Message, MessageReaction, PartialMessage, PartialMessageReaction, TextChannel} from "discord.js";
-import HallOfDootConfig from "../entity/hall-of-doot-config";
-import Guild from "../entity/guild";
+import {Message, MessageReaction, PartialMessageReaction, TextChannel} from "discord.js";
+import {Repositories} from "../model/mongo-db-info";
 import Channel from "../entity/channel";
-import ChannelConverter from "../converter/channel-converter";
-import ChannelMessage from "../entity/channel-message";
-import ChannelMessageConverter from "../converter/channel-message-converter";
+import MessageEntity from "../entity/message";
+import path from "node:path";
+import {HALL_OFF_DOOT_REACTION_TEMPLATE, HTML_PATH} from "../constants";
 import fs from "fs";
 import nodeHtmlToImage from "node-html-to-image";
-import {HALL_OFF_DOOT_REACTION_TEMPLATE, HTML_PATH} from "../constants";
-import path from "node:path";
-import {Sequelize} from "sequelize-typescript";
-import HallOfDootConfigRepository from "../repository/hall-of-doot-config-repository";
-import GuildRepository from "../repository/guild-repository";
-import ChannelRepository from "../repository/channel-repository";
-import ChannelMessageRepository from "../repository/channel-message-repository";
 
 export default class HallOfDootFeature {
     private _discordClient: DiscordClient;
+    private _repositories: Repositories;
 
-    constructor(discordClient: DiscordClient) {
+
+    constructor(discordClient: DiscordClient, repositories: Repositories) {
         this._discordClient = discordClient;
+        this._repositories = repositories;
     }
 
     async handleOnReactionAdd(messageReaction: MessageReaction | PartialMessageReaction) {
         const message = messageReaction.message;
-        // const messageId = message.id;
-        // const channelId = message.channelId;
-        const guildId = message.guildId;
-        if (guildId === null) {
-            console.log(`Message did not have guild id`);
-            return;
-        }
-        const guildRepository = new GuildRepository();
-        const guild = await guildRepository.findByDiscordId(guildId);
-        if (guild === null) {
-            console.log(`Guild ID ${guildId} not found.`)
+        const guildDiscordId = message.guildId;
+        if (guildDiscordId === null) {
+            console.log('guild id not found on message reaction');
             return;
         }
 
-        const hallOfDootConfig = await guild?.$get('hallOfDootConfig');
-        if (hallOfDootConfig === null || hallOfDootConfig === undefined) {
-            console.log(`Did not find hall of doot config for guild ${guildId}`);
+        const guildRepository = this._repositories.guildRepository;
+        const messageRepository = this._repositories.messageRepository;
+        const channelRepository = this._repositories.channelRepository;
+        let messageEntity = await messageRepository.findMessageByGuildChannelMessageId(guildDiscordId, message.channelId, message.id).next();
+        if (messageEntity !== null && messageEntity.sentToHallOfDoot) {
+            console.log('message already sent to hall of doot');
+            return;
+        }
+
+        const hallOfDootConfig = await guildRepository.findHallOfDootConfigByGuildDiscordId(guildDiscordId).next();
+        if (hallOfDootConfig === null) {
+            console.log(' hall of doot config not found in db');
+            return;
+        }
+
+        const hallOfDootChannel = await channelRepository.findChannelByChannelObjectId(hallOfDootConfig.hallOfDootChannelObjectId).next();
+        if (hallOfDootChannel === null) {
+            console.log('hall of doot channel not found in db');
             return;
         }
 
         const fullMessage = await message.fetch(true);
-        const reactions = fullMessage.reactions.cache;
+        const messageReactions = fullMessage.reactions.cache;
+        const reactionThatMeetsHallOfDootCriteria = messageReactions.find((value, key) => {
+            return value.count >= hallOfDootConfig.requiredNumberOfReactions;
+        });
 
-        const requiredReactionCount = hallOfDootConfig.requiredReactionCount;
-
-        let reactionCount = 0;
-        for (const [reactionKey, reaction] of reactions) {
-            if (hallOfDootConfig.useCumulativeReactionCount) {
-                reactionCount += reaction.count;
-            } else if (requiredReactionCount >= reaction.count) {
-                reactionCount = reaction.count;
-                break;
-            }
+        if (reactionThatMeetsHallOfDootCriteria === undefined) {
+            console.log('not enough reactions for hall of doot');
+            return;
         }
 
-        if (reactionCount >= requiredReactionCount) {
-            const channelRepository = new ChannelRepository();
-            let channel = await channelRepository.findByDiscordId(message.channelId);
-            console.log('channel after first get', channel);
-            if (channel === null) {
-                const channelConverter = new ChannelConverter();
-                channel = channelConverter.convert(message);
-                channel.guildId = guild.id;
-                channel = await new ChannelRepository().save(channel);
-            }
-            const channelMessageRepository = new ChannelMessageRepository();
-            let channelMessage = await channelMessageRepository.findByMessageDiscordIdAndChannelId(message.id, channel?.id);
-            if (channelMessage === null) {
-                const channelMessageConverter = new ChannelMessageConverter();
-                channelMessage = channelMessageConverter.convert(message);
-                channelMessage.channelId = channel?.id;
-                channelMessage = await channelMessageRepository.save(channelMessage);
-            }
-
-            if (channelMessage.sentToHallOfDoot) {
-                console.log(`Message ${message.id} already sent to hall of doot`)
-                return;
-            }
-
-            channelMessage.sentToHallOfDoot = true;
-            channelMessage = await channelMessageRepository.save(channelMessage);
-            const hallOfDootChannel = await hallOfDootConfig.$get('hallOfDootChannel');
-            if (hallOfDootChannel !== null) {
-                this.sendMessageToHallOfDoot(message, hallOfDootChannel.discordId);
-            }
+        let channel = await channelRepository.findChannelByChannelDiscordId(message.channelId).next();
+        if (channel === null) {
+            channel = new Channel();
+            channel.discordId = fullMessage.channelId;
+            await channelRepository.saveChannel(guildDiscordId, channel);
         }
+
+
+        if (messageEntity === null) {
+            messageEntity = new MessageEntity();
+            messageEntity.discordId = message.id;
+        }
+        messageEntity.sentToHallOfDoot = true;
+        await messageRepository.saveMessage(guildDiscordId, message.channelId, messageEntity);
+
+        this.sendMessageToHallOfDoot(fullMessage, hallOfDootChannel.discordId)
     }
 
-    private sendMessageToHallOfDoot(message: Message | PartialMessage, sendToChannelId: string) {
+
+    private sendMessageToHallOfDoot(message: Message, sendToChannelId: string) {
         this.createHallOfDootImage(message).then((data) => {
             this._discordClient.channels.fetch(sendToChannelId).then(channel => {
                 if (channel !== undefined) {
@@ -112,7 +96,7 @@ export default class HallOfDootFeature {
         })
     }
 
-    private async createHallOfDootImage(message: Message | PartialMessage) {
+    private async createHallOfDootImage(message: Message) {
         const messageGuildMember = message.member;
         let authorServerAvatarUrl: string | null = null;
         let authorServerNickName: string | null = null;

@@ -1,27 +1,71 @@
 import Channel from "../entity/channel";
+import {Collection, ObjectId} from "mongodb";
+import Guild from "../entity/guild";
 
 export default class ChannelRepository {
-    upsert(channel: Channel) {
-        return Channel.upsert(channel.dataValues, {conflictFields:['discordId'], fields:Object.keys(channel.dataValues)});
+    declare _guildChannelMessageCollection: Collection<Guild>;
+
+    constructor(guildChannelMessageCollection: Collection<Guild>) {
+        this._guildChannelMessageCollection = guildChannelMessageCollection;
     }
 
-    findById(id: number) {
-        return Channel.findOne({
-            where:[{
-                id: id
-            }]
+    saveChannel(guildDiscordId: string, channel: Channel) {
+        return this._guildChannelMessageCollection.updateOne({
+            discordId: guildDiscordId
+        }, {
+            $push: {channels: channel}
         })
     }
 
-    findByDiscordId(discordId: string) {
-        return Channel.findOne({
-            where:[{
-                discordId: discordId
-            }]
-        })
+    findChannelByChannelDiscordId(channelDiscordId: string) {
+        return this._guildChannelMessageCollection.aggregate<Channel>([
+            {
+                $match: {
+                    "channels.discordId": channelDiscordId
+                }
+            }, {
+                $project: {
+                    channels: 1
+                }
+            }, {
+                $unwind: {
+                    path: "$channels"
+                }
+            }, {
+                $match: {
+                    "channels.discordId": "1219841286870405254"
+                }
+            }, {
+                $replaceRoot: {
+                    newRoot: "$channels"
+                }
+            }
+        ]).limit(1);
     }
 
-    save(channel: Channel) {
-        return channel.save();
+    findChannelByChannelObjectId(channelObjectId: ObjectId) {
+        return this._guildChannelMessageCollection.aggregate<Channel>([
+            {
+                $match: {
+                    "channels._id": channelObjectId
+                }
+            }, {
+                $project: {
+                    channels: 1
+                }
+            }, {
+                $unwind: {
+                    path: "$channels"
+                }
+            }, {
+                $match: {
+                    "channels._id": channelObjectId
+                }
+            }, {
+                $replaceRoot: {
+                    newRoot: "$channels"
+                }
+            }
+        ]).limit(1);
     }
 }

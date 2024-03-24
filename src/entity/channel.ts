@@ -1,27 +1,14 @@
-import {BelongsTo, Column, ForeignKey, HasMany, Model, NotNull, Table} from "sequelize-typescript";
-import Guild from "./guild";
-import Cron from "./cron";
-import ChannelMessage from "./channel-message";
-import HallOfDootConfig from "./hall-of-doot-config";
+import {ObjectId} from "mongodb";
+import ChannelCron from "./channel-cron";
+import Message from "./message";
 
-@Table({tableName:"channel"})
-export default class Channel extends Model {
-    @Column({allowNull: false, unique: true})
+export default class Channel {
+    declare _id: ObjectId;
     declare discordId: string;
+    declare channelCrons: ChannelCron[];
+    declare messages: Message[];
 
-    @ForeignKey(() => Guild)
-    @Column({allowNull: false})
-    declare guildId: number;
-
-    @BelongsTo(() => Guild)
-    declare guild: Guild;
-
-    @HasMany(() => Cron)
-    declare crons: Cron[];
-
-    @HasMany(() => ChannelMessage)
-    declare messages: ChannelMessage[];
-
-    @HasMany(() => HallOfDootConfig)
-    declare hallOfDootConfigs: HallOfDootConfig[];
+    constructor() {
+        this._id = new ObjectId();
+    }
 }
