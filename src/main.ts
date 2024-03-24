@@ -157,6 +157,7 @@ class DoomBot {
             featureClasses.botCronManager.setupCrons();
         });
         client.on(Events.MessageCreate, (message) => {
+            console.log(message.stickers)
             if (message.author.bot) return;
             featureClasses.autoReplyFeature.handleMessageCreate(message);
             featureClasses.minecraftReferenceFeature.handle(message);

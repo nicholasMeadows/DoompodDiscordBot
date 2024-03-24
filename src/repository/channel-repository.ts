@@ -33,7 +33,7 @@ export default class ChannelRepository {
                 }
             }, {
                 $match: {
-                    "channels.discordId": "1219841286870405254"
+                    "channels.discordId": channelDiscordId
                 }
             }, {
                 $replaceRoot: {
