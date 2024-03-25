@@ -9,17 +9,32 @@ export default class MessageRepository {
         this._guildChannelMessageCollection = guildChannelMessageCollection;
     }
 
-    saveMessage(guildDiscordId: string, channelDiscordId: string, message: Message) {
-        return this._guildChannelMessageCollection.updateOne({
-            "discordId": guildDiscordId,
-            "channels.discordId": channelDiscordId
-        }, {
-            $set: {
-                "channels.$.messages": message
+    async saveMessage(guildDiscordId: string, channelDiscordId: string, message: Message) {
+        let result = await this._guildChannelMessageCollection.updateOne(
+            {
+                discordId: guildDiscordId,
+                "channels.discordId": channelDiscordId,
+                "messages._id": message._id
+            },
+            {
+                $set: {"messages.$": message}
             }
-        }, {
-            upsert: true
-        })
+        );
+
+
+        if (result.matchedCount === 0) {
+            await this._guildChannelMessageCollection.updateOne(
+                {
+                    discordId: guildDiscordId,
+                    "channels.discordId": channelDiscordId
+                },
+                {
+                    $push: {
+                        "channels.$.messages": message
+                    }
+                }
+            );
+        }
     }
 
     findMessageByGuildChannelMessageReactionId(guildDiscordId: string, channelDiscordId: string, messageDiscordId: string, autoReplyObjectId: ObjectId) {

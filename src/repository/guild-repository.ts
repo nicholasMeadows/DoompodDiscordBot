@@ -159,7 +159,8 @@ export default class GuildRepository {
         return this._guildChannelMessageCollection.aggregate<HallOfDootConfig>([
             {
                 $match: {
-                    discordId: guildDiscordId
+                    discordId: guildDiscordId,
+                    hallOfDootConfig: {$exists: true}
                 }
             }, {
                 $project: {
