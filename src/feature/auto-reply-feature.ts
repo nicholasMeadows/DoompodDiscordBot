@@ -6,9 +6,11 @@ import BotAsset from "../entity/bot-asset";
 import Sticker from "../entity/sticker";
 import Channel from "../entity/channel";
 import MessageEntity from "../entity/message"
+import Log from "../log";
 
 export default class AutoReplyFeature {
     private _repositories: Repositories;
+    private logger = new Log(this);
 
     constructor(repositories: Repositories) {
         this._repositories = repositories;
@@ -25,13 +27,13 @@ export default class AutoReplyFeature {
     private async handle(message: Message, autoReplyTrigger: AutoReplyTrigger) {
         const guildDiscordId = message.guildId;
         if (guildDiscordId === null) {
-            console.log(`Guild ${guildDiscordId} was not found on discord message.`);
+            this.logger.warn(`Guild ${guildDiscordId} was not found on discord message.`);
             return;
         }
         const guildRepository = this._repositories.guildRepository;
         const autoReplyInfos = await guildRepository.findAutoRepliesByGuildDiscordIdAndAutoReplyTrigger(guildDiscordId, autoReplyTrigger).toArray();
         if (autoReplyInfos === undefined || autoReplyInfos.length == 0) {
-            console.log(`No auto replies found for guild id ${guildDiscordId} and trigger type ${autoReplyTrigger}`);
+            this.logger.info(`No auto replies found for guild id ${guildDiscordId} and trigger type ${autoReplyTrigger}`);
             return;
         }
         for (const autoReplyInfo of autoReplyInfos) {
@@ -49,17 +51,17 @@ export default class AutoReplyFeature {
     async handleAutoReplyForMessageContent(message: Message, autoReplyInfo: AutoReplyInfo) {
         const replyChancePercentage = autoReplyInfo.replyChancePercentage;
         if (Math.random() > replyChancePercentage / 100) {
-            console.log("Reply chance not met");
+            this.logger.info("Reply chance not met");
             return;
         }
         const triggerTerms = autoReplyInfo.triggerTerms;
         if (triggerTerms === undefined) {
-            console.log('No defined trigger terms');
+            this.logger.warn('No defined trigger terms');
             return;
         }
         const messageContent = message.content.toLowerCase();
         if (!triggerTerms.some(term => messageContent.includes(term.toLowerCase()))) {
-            console.log('Trigger term not found in message');
+            this.logger.info('Trigger term not found in message');
             return;
         }
         this.replyToMessage(autoReplyInfo.randomizeAttachmentsSent, message, autoReplyInfo.replyWithAssets, autoReplyInfo.replyWithStickers, autoReplyInfo.replyWithText);
@@ -74,18 +76,18 @@ export default class AutoReplyFeature {
         const messageRepository = this._repositories.messageRepository;
         const messageAlreadyRepliedTo = await messageRepository.findMessageByGuildChannelMessageReactionId(message.guildId, message.channelId, message.id, autoReplyInfo._id).next();
         if (messageAlreadyRepliedTo !== null) {
-            console.log('Message was already replied to.')
+            this.logger.info('Message was already replied to.')
             return;
         }
 
         if (Math.random() > autoReplyInfo.replyChancePercentage / 100) {
-            console.log('Percentage not met')
+            this.logger.info('Percentage not met')
             return;
         }
 
         const requiredReactions = autoReplyInfo.requiredReactionsForReply;
         if (requiredReactions === undefined || requiredReactions.length === 0) {
-            console.log('no required reactions found');
+            this.logger.warn('no required reactions found');
             return;
         }
 
@@ -93,11 +95,11 @@ export default class AutoReplyFeature {
         for (const requiredReaction of requiredReactions) {
             const messageReaction = messageReactions.get(requiredReaction.reactionKey);
             if (messageReaction === undefined) {
-                console.log('Reaction requirment not met');
+                this.logger.info('Reaction requirment not met');
                 return;
             }
             if (messageReaction.count < requiredReaction.reactionCount) {
-                console.log('Not enough reactions for this reply');
+                this.logger.info('Not enough reactions for this reply');
                 return;
             }
         }
@@ -155,7 +157,7 @@ export default class AutoReplyFeature {
         }
 
         if (paths.length === 0 && stickerIds.length === 0 && (replyWithText === undefined || replyWithText.length === 0)) {
-            console.log('Cannot reply. Not message content');
+            this.logger.error('Cannot reply. Not message content');
             return;
         }
 

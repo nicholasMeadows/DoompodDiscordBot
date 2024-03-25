@@ -31,8 +31,12 @@ import WalkLogRepository from "./repository/walk-log-repository";
 import {MinecraftReferenceRepository} from "./repository/minecraft-reference-repository";
 import UserRepository from "./repository/user-repository";
 import GuildRepository from "./repository/guild-repository";
+import Log from "./log";
+import LogLevel from "./model/enum/log-level";
 
 class DoomBot {
+    private logger = new Log(this);
+
     async startDoomBot() {
         const config = this.loadConfig();
         const mongoDbInfo = await this.initializeDatabase(config);
@@ -79,21 +83,29 @@ class DoomBot {
         const dbPassword = this.checkForConfigValue(config, "dbPassword", "DB_PASSWORD")
         const dbPort = this.checkForConfigValue(config, "dbPort", "DB_PORT")
         const dbHost = this.checkForConfigValue(config, "dbHost", "DB_HOST")
+        let logLevel = this.checkForConfigValue(config, "logLevel", "LOG_LEVEL", false);
+        if (logLevel === undefined || !(logLevel in LogLevel)) {
+            logLevel = LogLevel.INFO;
+        }
+        Log.LOG_LEVEL = logLevel
+
         return new Config(token, clientId, dbName, dbUsername, dbPassword, dbPort, dbHost);
     }
 
-    checkForConfigValue(config: any, jsonKey: string, envKey: string) {
+    checkForConfigValue(config: any, jsonKey: string, envKey: string, required = true) {
         const envValue = process.env[envKey];
         if (envValue === undefined) {
             if (config === undefined) {
-                console.log(`Required key ${envKey} not found environment file and config.json not found.`)
-                process.exit(1);
+                this.logger.info(`${required ? 'Required' : ''} key ${envKey} not found environment file and config.json not found.`)
+                if (required)
+                    process.exit(1);
             }
             if (Object.keys(config).includes(jsonKey)) {
                 return config[jsonKey];
             }
-            console.log(`Required key ${envKey} not found environment file and required key ${jsonKey} not found in config.json`)
-            process.exit(1);
+            this.logger.info(`${required ? 'Required' : ''} key ${envKey} not found environment file and required key ${jsonKey} not found in config.json`)
+            if (required)
+                process.exit(1);
         }
         return envValue;
     }
@@ -153,11 +165,10 @@ class DoomBot {
 
     setupDiscordClientEventListeners(client: DiscordClient, featureClasses: FeatureClassesObj, repositories: Repositories) {
         client.once(Events.ClientReady, (readyClient) => {
-            console.log(`Ready! Logged in as ${readyClient.user.tag}`);
+            this.logger.info(`Ready! Logged in as ${readyClient.user.tag}`);
             featureClasses.botCronManager.setupCrons();
         });
         client.on(Events.MessageCreate, (message) => {
-            console.log(message.stickers)
             if (message.author.bot) return;
             featureClasses.autoReplyFeature.handleMessageCreate(message);
             featureClasses.minecraftReferenceFeature.handle(message);
@@ -166,13 +177,13 @@ class DoomBot {
             if (!interaction.isChatInputCommand()) return;
             const command = client.commands.get(interaction.commandName);
             if (!command) {
-                console.error(`No command matching ${interaction.commandName} was found.`);
+                this.logger.warn(`No command matching ${interaction.commandName} was found.`);
                 return;
             }
             try {
                 await command.execute(client, repositories, interaction);
             } catch (error) {
-                console.error(error);
+                this.logger.error(error)
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp({
                         content: "There was an error while executing this command!",
@@ -212,8 +223,8 @@ class DoomBot {
                         const slashCommand = command as SlashCommand;
                         commands.set(slashCommand.data.name, slashCommand);
                     } else {
-                        console.log(
-                            `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
+                        this.logger.warn(
+                            `The command at ${filePath} is missing a required "data" or "execute" property.`
                         );
                     }
                 }
@@ -232,7 +243,7 @@ class DoomBot {
 
         // and deploy your commands!
         try {
-            console.log(
+            this.logger.info(
                 `Started refreshing ${commands.length} application (/) commands.`
             );
 
@@ -241,12 +252,12 @@ class DoomBot {
                 body: commands,
             });
 
-            console.log(
+            this.logger.info(
                 `Successfully reloaded application (/) commands.`
             );
         } catch (error) {
             // And of course, make sure you catch and log any errors!
-            console.error(error);
+            this.logger.error(error);
         }
     }
 }

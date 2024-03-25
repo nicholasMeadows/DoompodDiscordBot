@@ -5,11 +5,14 @@ import GuildChannelCronInfo from "../model/guild-channel-cron-info";
 import CronAction from "../model/enum/cron-action";
 import {TextChannel} from "discord.js";
 import WalkCompetitionFeature from "./walk-competition-feature";
+import Log from "../log";
 
 export default class BotCronManager {
     private _discordClient: DiscordClient;
     private _repositories: Repositories;
     private _crons: Array<ScheduledTask>;
+
+    private logger = new Log(this);
 
     constructor(discordClient: DiscordClient, repositories: Repositories) {
         this._discordClient = discordClient;
@@ -18,7 +21,7 @@ export default class BotCronManager {
     }
 
     async setupCrons() {
-        console.log("Setting up crons");
+        this.logger.info("Setting up crons");
         this.clearExistingCrons();
         const guildChannelCronInfos = await this._repositories.guildRepository.findAllGuildChannelCronInfo().toArray();
 
@@ -32,7 +35,7 @@ export default class BotCronManager {
     }
 
     private clearExistingCrons() {
-        console.log("Clearing existing crons");
+        this.logger.info("Clearing existing crons");
         this._crons.forEach(cron => {
             cron.stop();
         });
@@ -53,11 +56,11 @@ export default class BotCronManager {
     }
 
     private async sendMediaOrStickerCron(guildChannelCronInfo: GuildChannelCronInfo) {
-        console.log(`Running cron "${guildChannelCronInfo.channelCron.name}"`)
+        this.logger.info(`Running cron "${guildChannelCronInfo.channelCron.name}"`)
         const channelDiscordId = guildChannelCronInfo.channelDiscordId;
         const discordChannel = await this._discordClient.channels.fetch(channelDiscordId);
         if (discordChannel === null) {
-            console.log(`Discord channel id ${channelDiscordId} was not found in discord API`);
+            this.logger.error(`Discord channel id ${channelDiscordId} was not found in discord API`);
             return;
         }
 
@@ -72,8 +75,8 @@ export default class BotCronManager {
         if (stickers !== undefined && stickers.length > 0) {
             stickerDiscordIds.push(...stickers.map(sticker => sticker.discordId));
         }
-        if (paths.length == 0 && stickerDiscordIds) {
-            console.log(`No content to send in message for cron ${guildChannelCronInfo.channelCron.name}`);
+        if (paths.length == 0 && stickerDiscordIds.length == 0) {
+            this.logger.error(`No content to send in message for cron ${guildChannelCronInfo.channelCron.name}`);
             return;
         }
         await (discordChannel as TextChannel).send({

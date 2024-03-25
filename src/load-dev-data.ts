@@ -13,16 +13,18 @@ import CronAction from "./model/enum/cron-action";
 import cronAction from "./model/enum/cron-action";
 import AutoReplyTrigger from "./model/enum/auto-reply-trigger";
 import HallOfDootConfig from "./entity/hall-of-doot-config";
+import Log from "./log";
 
 export default class LoadDevData {
     declare mongoDbInfo: MongoDbInfo;
+    private logger = new Log(this);
 
     constructor(mongoDbInfo: MongoDbInfo) {
         this.mongoDbInfo = mongoDbInfo;
     }
 
     async loadDevData() {
-        console.log('testing load dev');
+        this.logger.info('testing load dev');
         await this.mongoDbInfo.db.dropDatabase({dbName: "doombot"});
 
         const assets = await this.createAndSaveBotAssets();

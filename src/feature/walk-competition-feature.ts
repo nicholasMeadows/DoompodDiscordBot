@@ -6,10 +6,13 @@ import {ObjectId} from "mongodb";
 import User from "../entity/user";
 import UserWalkLog from "../entity/user-walk-log";
 import GuildChannelCronInfo from "../model/guild-channel-cron-info";
+import Log from "../log";
 
 export default class WalkCompetitionFeature {
     private _discordClient: DiscordClient;
     private _repositories: Repositories;
+
+    private logger = new Log(this);
 
     constructor(discordClient: DiscordClient, repositories: Repositories) {
         this._discordClient = discordClient;
@@ -20,7 +23,7 @@ export default class WalkCompetitionFeature {
         const authorId = interaction.user.id
         const guildId = interaction.guildId;
         if (guildId === null) {
-            console.log('interaction didnt have guildId');
+            this.logger.warn('interaction didnt have guildId');
             return 'Command not run in a guild. Cannot process request';
         }
 
@@ -65,7 +68,7 @@ export default class WalkCompetitionFeature {
         const authorId = interaction.user.id
         const guildId = interaction.guildId;
         if (guildId === null) {
-            console.log('interaction didnt have guildId');
+            this.logger.warn('interaction didnt have guildId');
             return 'Command not run in a guild. Cannot process request';
         }
 
@@ -75,7 +78,7 @@ export default class WalkCompetitionFeature {
         const guildObjectIdObj = await guildRepository.findGuildObjectIdByGuildDiscordId(guildId).next();
 
         if (guildObjectIdObj === null || guildObjectIdObj.guildObjectId === null) {
-            console.log(`Guild ${guildId} was not found in db`)
+            this.logger.warn(`Guild ${guildId} was not found in db`)
             return `<@${authorId}> you have walked 0 miles.`
         }
 
@@ -84,7 +87,7 @@ export default class WalkCompetitionFeature {
             user = new User();
             user.discordUserId = authorId;
             await userRepository.saveGuildUser(guildObjectIdObj.guildObjectId, user);
-            console.log(`User ${authorId} was not found in db`)
+            this.logger.info(`User ${authorId} was not found in db`)
             return `<@${authorId}> you have walked 0 miles.`
         }
 
@@ -106,7 +109,7 @@ export default class WalkCompetitionFeature {
 
         const walkChannelDiscordIdObj = await walkLogRepository.findWalkLogMonthResultsChannelForGuildObjectId(guildObjectId).next();
         if (walkChannelDiscordIdObj === null || walkChannelDiscordIdObj.discordId === null) {
-            console.log('Could not find which channel to send walk month results to.');
+            this.logger.warn('Could not find which channel to send walk month results to.');
             return;
         }
 
@@ -125,7 +128,7 @@ export default class WalkCompetitionFeature {
 
         const walkResultsSorted = await walkLogRepository.findTopWalkersForMonth(guildObjectId, startDate, endDate).toArray();
         if (walkResultsSorted === null || walkResultsSorted.length === 0) {
-            console.log('No walk results found!');
+            this.logger.info('No walk results found!');
             return;
         }
 
@@ -158,7 +161,7 @@ export default class WalkCompetitionFeature {
         const authorId = interaction.user.id
         const guildId = interaction.guildId;
         if (guildId === null) {
-            console.log('interaction didnt have guildId');
+            this.logger.warn('interaction didnt have guildId');
             return 'Command not run in a guild. Cannot process request';
         }
 
@@ -168,7 +171,7 @@ export default class WalkCompetitionFeature {
 
         const guildObjectIdObj = await guildRepository.findGuildObjectIdByGuildDiscordId(guildId).next();
         if (guildObjectIdObj === null || guildObjectIdObj.guildObjectId === null) {
-            console.log(`Guild ${guildId} was not found in db`)
+            this.logger.warn(`Guild ${guildId} was not found in db`)
             return `Could not find top walking data.`
         }
 

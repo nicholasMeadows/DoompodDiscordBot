@@ -5,10 +5,12 @@ import MinecraftReference from "../entity/minecraft-reference";
 import Guild from "../entity/guild";
 import {ObjectId} from "mongodb";
 import User from "../entity/user";
+import Log from "../log";
 
 export default class MinecraftReferenceFeature {
     private _discordClient: DiscordClient;
     private _repositories: Repositories;
+    private logger = new Log(this);
 
     constructor(discordClient: DiscordClient, repositories: Repositories) {
         this._discordClient = discordClient;
@@ -39,7 +41,7 @@ export default class MinecraftReferenceFeature {
             guild.discordId = guildId;
             const discordGuild = message.guild;
             if (discordGuild === null) {
-                console.log('Not guild was found and message did not have guild');
+                this.logger.info('Not guild was found and message did not have guild');
                 return;
             }
             guild.name = discordGuild.name;
@@ -60,7 +62,7 @@ export default class MinecraftReferenceFeature {
         if (mostRecentMinecraftReference != null) {
             const discordChannel = await this._discordClient.channels.fetch(channelId)
             if (discordChannel === null) {
-                console.log(`No discord channel was returned from discord client for channel id ${channelId}`)
+                this.logger.warn(`No discord channel was returned from discord client for channel id ${channelId}`)
                 return;
             }
 
@@ -78,7 +80,7 @@ export default class MinecraftReferenceFeature {
                 minecraftReferenceRecord = minecraftReferenceRecordObj.minecraftReferenceRecord;
             }
 
-            console.log(`time between ${timeBetween} the record ${minecraftReferenceRecord}`)
+            this.logger.debug(`time between ${timeBetween} the record ${minecraftReferenceRecord}`)
             let message = '';
             if (timeBetween < minecraftReferenceRecord) {
                 message = '@everyone Congrats!!!! You have beaten the record for quickest minecraft reference so far. This one clocked in at'

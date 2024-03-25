@@ -7,11 +7,13 @@ import path from "node:path";
 import {HALL_OFF_DOOT_REACTION_TEMPLATE, HTML_PATH} from "../constants";
 import fs from "fs";
 import nodeHtmlToImage from "node-html-to-image";
+import Log from "../log";
 
 export default class HallOfDootFeature {
     private _discordClient: DiscordClient;
     private _repositories: Repositories;
 
+    private logger = new Log(this);
 
     constructor(discordClient: DiscordClient, repositories: Repositories) {
         this._discordClient = discordClient;
@@ -22,7 +24,7 @@ export default class HallOfDootFeature {
         const message = messageReaction.message;
         const guildDiscordId = message.guildId;
         if (guildDiscordId === null) {
-            console.log('guild id not found on message reaction');
+            this.logger.warn('guild id not found on message reaction');
             return;
         }
 
@@ -31,19 +33,19 @@ export default class HallOfDootFeature {
         const channelRepository = this._repositories.channelRepository;
         let messageEntity = await messageRepository.findMessageByGuildChannelMessageId(guildDiscordId, message.channelId, message.id).next();
         if (messageEntity !== null && messageEntity.sentToHallOfDoot) {
-            console.log('message already sent to hall of doot');
+            this.logger.info('message already sent to hall of doot');
             return;
         }
 
         const hallOfDootConfig = await guildRepository.findHallOfDootConfigByGuildDiscordId(guildDiscordId).next();
         if (hallOfDootConfig === null) {
-            console.log(' hall of doot config not found in db');
+            this.logger.info(' hall of doot config not found in db');
             return;
         }
 
         const hallOfDootChannel = await channelRepository.findChannelByChannelObjectId(hallOfDootConfig.hallOfDootChannelObjectId).next();
         if (hallOfDootChannel === null) {
-            console.log('hall of doot channel not found in db');
+            this.logger.warn('hall of doot channel not found in db');
             return;
         }
 
@@ -54,7 +56,7 @@ export default class HallOfDootFeature {
         });
 
         if (reactionThatMeetsHallOfDootCriteria === undefined) {
-            console.log('not enough reactions for hall of doot');
+            this.logger.info('not enough reactions for hall of doot');
             return;
         }
 
