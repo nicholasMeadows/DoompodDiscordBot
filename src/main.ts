@@ -94,20 +94,16 @@ class DoomBot {
 
     checkForConfigValue(config: any, jsonKey: string, envKey: string, required = true) {
         const envValue = process.env[envKey];
-        if (envValue === undefined) {
-            if (config === undefined) {
-                this.logger.info(`${required ? 'Required' : ''} key ${envKey} not found environment file and config.json not found.`)
-                if (required)
-                    process.exit(1);
-            }
-            if (Object.keys(config).includes(jsonKey)) {
-                return config[jsonKey];
-            }
-            this.logger.info(`${required ? 'Required' : ''} key ${envKey} not found environment file and required key ${jsonKey} not found in config.json`)
-            if (required)
-                process.exit(1);
+        if (envValue !== undefined) {
+            return envValue;
         }
-        return envValue;
+        if (config !== undefined && Object.keys(config).includes(jsonKey)) {
+            return config[jsonKey];
+        }
+        this.logger.info(`${required ? 'Required' : ''} key ${envKey} not found environment file and config.json not found.`)
+        if (required) {
+            process.exit(1);
+        }
     }
 
     initializeDatabase(config: Config): Promise<MongoDbInfo> {

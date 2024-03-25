@@ -1,7 +1,7 @@
 import LogLevel from "./model/enum/log-level";
 
 export default class Log {
-    static LOG_LEVEL: LogLevel;
+    static LOG_LEVEL: LogLevel = LogLevel.INFO;
 
     private instance: object;
 
@@ -62,19 +62,6 @@ export default class Log {
     }
 
     private checkLogLevel(requestedLogLevelMessage: LogLevel) {
-        // if (requestedLogLevelMessage === LogLevel.DEBUG) {
-        //     return Log.LOG_LEVEL === LogLevel.DEBUG || Log.LOG_LEVEL === LogLevel.INFO || Log.LOG_LEVEL === LogLevel.WARN || Log.LOG_LEVEL === LogLevel.ERROR || Log.LOG_LEVEL === LogLevel.FATAL;
-        // } else if (requestedLogLevelMessage === LogLevel.INFO) {
-        //     return Log.LOG_LEVEL === LogLevel.INFO || Log.LOG_LEVEL === LogLevel.WARN || Log.LOG_LEVEL === LogLevel.ERROR || Log.LOG_LEVEL === LogLevel.FATAL;
-        // } else if (requestedLogLevelMessage === LogLevel.WARN) {
-        //     return Log.LOG_LEVEL === LogLevel.WARN || Log.LOG_LEVEL === LogLevel.ERROR || Log.LOG_LEVEL === LogLevel.FATAL;
-        // } else if (requestedLogLevelMessage === LogLevel.ERROR) {
-        //     return Log.LOG_LEVEL === LogLevel.ERROR || Log.LOG_LEVEL === LogLevel.FATAL;
-        // } else if (requestedLogLevelMessage === LogLevel.FATAL) {
-        //     return Log.LOG_LEVEL === LogLevel.FATAL;
-        // }
-
-
         if (requestedLogLevelMessage === LogLevel.DEBUG) {
             return Log.LOG_LEVEL === LogLevel.DEBUG;
         } else if (requestedLogLevelMessage === LogLevel.INFO) {
