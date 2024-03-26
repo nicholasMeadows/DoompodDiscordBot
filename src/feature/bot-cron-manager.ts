@@ -24,7 +24,6 @@ export default class BotCronManager {
 
     async setupCrons() {
         this.logger.info("Setting up crons");
-        this.clearExistingCrons();
         const guildChannelCronInfos = await this._repositories.guildRepository.findAllGuildChannelCronInfo().toArray();
 
         for (const guildChannelCronInfo of guildChannelCronInfos) {
@@ -36,7 +35,7 @@ export default class BotCronManager {
         }
     }
 
-    private clearExistingCrons() {
+    clearExistingCrons() {
         this.logger.info("Clearing existing crons");
         this._crons.forEach(cron => {
             cron.stop();
@@ -95,7 +94,7 @@ export default class BotCronManager {
         walkCompetitionFeature.handlePostWalkingResultsCron(guildChannelCronInfo);
     }
 
-    async handleDailyCapybara(guildChannelCronInfo: GuildChannelCronInfo) {
+    private async handleDailyCapybara(guildChannelCronInfo: GuildChannelCronInfo) {
         const channelDiscordId = guildChannelCronInfo.channelDiscordId;
         const discordChannel = await this._discordClient.channels.fetch(channelDiscordId);
         if (discordChannel === null) {

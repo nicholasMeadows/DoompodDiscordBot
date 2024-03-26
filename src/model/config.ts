@@ -7,9 +7,10 @@ export default class Config {
     private declare readonly _dbPassword: string;
     private declare readonly _dbPort: number;
     private declare readonly _dbHost: string;
+    private declare readonly _ownerGuildDiscordId: string | undefined
 
     constructor(token: string, clientId: string, dbName: string,
-                dbUsername: string, dbPassword: string, dbPort: number, dbHost: string) {
+                dbUsername: string, dbPassword: string, dbPort: number, dbHost: string, ownerGuildDiscordId: string | undefined) {
         this._token = token;
         this._clientId = clientId;
         this._dbName = dbName;
@@ -17,6 +18,7 @@ export default class Config {
         this._dbPassword = dbPassword;
         this._dbPort = dbPort;
         this._dbHost = dbHost
+        this._ownerGuildDiscordId = ownerGuildDiscordId;
     }
 
 
@@ -46,5 +48,9 @@ export default class Config {
 
     get dbHost(): string {
         return this._dbHost;
+    }
+
+    get ownerGuildDiscordId(): string | undefined {
+        return this._ownerGuildDiscordId;
     }
 }

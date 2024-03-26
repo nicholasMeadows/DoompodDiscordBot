@@ -57,12 +57,13 @@ class DoomBot {
 
         this.setupDiscordClientEventListeners(client, featureClasses, mongoDbInfo.repositories);
 
-        client.commands = await this.loadSlashCommands();
+        client.appCommands = await this.loadSlashCommands();
+        client.ownerCommands = await this.loadOwnerSlashCommands();
 
         // this.deploySlashCommands(client.commands, config);
-        // if (process.env.DEPLOY_SLASH_COMMANDS) {
-        //     this.deploySlashCommands(client.commands, config);
-        // }
+        if (process.env.DEPLOY_SLASH_COMMANDS) {
+            await this.deploySlashCommands(client.appCommands, client.ownerCommands, config);
+        }
         // Log in to Discord with your client's token
         await client.login(config.token);
     }
@@ -89,7 +90,8 @@ class DoomBot {
         }
         Log.LOG_LEVEL = logLevel
 
-        return new Config(token, clientId, dbName, dbUsername, dbPassword, dbPort, dbHost);
+        const ownerGuildDiscordId = this.checkForConfigValue(config, "ownerGuildDiscordId", "OWNER_GUILD_DISCORD_ID", false);
+        return new Config(token, clientId, dbName, dbUsername, dbPassword, dbPort, dbHost, ownerGuildDiscordId);
     }
 
     checkForConfigValue(config: any, jsonKey: string, envKey: string, required = true) {
@@ -171,13 +173,18 @@ class DoomBot {
         });
         client.on(Events.InteractionCreate, async (interaction) => {
             if (!interaction.isChatInputCommand()) return;
-            const command = client.commands.get(interaction.commandName);
-            if (!command) {
+            const appCommand = client.appCommands.get(interaction.commandName);
+            const ownerCommand = client.ownerCommands.get(interaction.commandName);
+            if (!appCommand && !ownerCommand) {
                 this.logger.warn(`No command matching ${interaction.commandName} was found.`);
                 return;
             }
             try {
-                await command.execute(client, repositories, interaction);
+                if (appCommand !== undefined) {
+                    await appCommand.execute(client, featureClasses, repositories, interaction);
+                } else if (ownerCommand !== undefined) {
+                    await ownerCommand.execute(client, featureClasses, repositories, interaction);
+                }
             } catch (error) {
                 this.logger.error(error)
                 if (interaction.replied || interaction.deferred) {
@@ -229,28 +236,66 @@ class DoomBot {
         })
     }
 
-    async deploySlashCommands(slashCommands: Collection<string, SlashCommand>, config: Config) {
-
-        const commands = slashCommands.map((slashCommand, name) => {
-            return slashCommand.data.toJSON();
+    async loadOwnerSlashCommands(): Promise<Collection<string, SlashCommand>> {
+        return new Promise(async (resolve) => {
+            const commands = new Collection<string, SlashCommand>();
+            const ownerSlashCommandsPath = path.join(__dirname, "owner-slash-commands");
+            const commandFiles = fs
+                .readdirSync(ownerSlashCommandsPath)
+                .filter((file) => file.endsWith(".js"));
+            for (const file of commandFiles) {
+                const filePath = path.join(ownerSlashCommandsPath, file);
+                const command = (await import(filePath)).default;
+                // Set a new item in the Collection with the key as the command name and the value as the exported module
+                if ("data" in command && "execute" in command) {
+                    const slashCommand = command as SlashCommand;
+                    commands.set(slashCommand.data.name, slashCommand);
+                } else {
+                    this.logger.warn(
+                        `The owner command at ${filePath} is missing a required "data" or "execute" property.`
+                    );
+                }
+            }
+            resolve(commands);
         })
+    }
+
+    async deploySlashCommands(applicationSlashCommands: Collection<string, SlashCommand>, ownerSlashCommands: Collection<string, SlashCommand>, config: Config) {
+        const applicationSlashCommandsJsons = applicationSlashCommands.map((slashCommand, name) => slashCommand.data.toJSON())
+        const ownerSlashCommandsJsons = ownerSlashCommands.map((slashCommand) => slashCommand.data.toJSON());
+
         // Construct and prepare an instance of the REST module
         const rest = new REST().setToken(config.token);
 
         // and deploy your commands!
         try {
             this.logger.info(
-                `Started refreshing ${commands.length} application (/) commands.`
+                `Started refreshing ${applicationSlashCommandsJsons.length} application (/) commands.`
             );
 
             // The put method is used to fully refresh all commands in the guild with the current set
-            const data = await rest.put(Routes.applicationCommands(config.clientId), {
-                body: commands,
+            const applicationSlashData = await rest.put(Routes.applicationCommands(config.clientId), {
+                body: applicationSlashCommandsJsons,
             });
 
             this.logger.info(
                 `Successfully reloaded application (/) commands.`
             );
+
+            if (config.ownerGuildDiscordId !== undefined) {
+                this.logger.info(
+                    `Started refreshing ${ownerSlashCommandsJsons.length} owner (/) commands.`
+                );
+
+                // The put method is used to fully refresh all commands in the guild with the current set
+                const ownerSlashCommands = await rest.put(Routes.applicationGuildCommands(config.clientId, config.ownerGuildDiscordId), {
+                    body: ownerSlashCommandsJsons,
+                });
+
+                this.logger.info(
+                    `Successfully reloaded owner (/) commands.`
+                );
+            }
         } catch (error) {
             // And of course, make sure you catch and log any errors!
             this.logger.error(error);
