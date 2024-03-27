@@ -8,6 +8,7 @@ import WalkLogRepository from "../repository/walk-log-repository";
 import {MinecraftReferenceRepository} from "../repository/minecraft-reference-repository";
 import UserRepository from "../repository/user-repository";
 import GuildRepository from "../repository/guild-repository";
+import CapybaraRepository from "../repository/capybara-repository";
 
 export default interface MongoDbInfo {
     mongoClient: MongoClient,
@@ -24,5 +25,6 @@ export interface Repositories {
     cronScheduleRepository: CronScheduleRepository,
     walkLogRepository: WalkLogRepository,
     minecraftReferenceRepository: MinecraftReferenceRepository,
-    userRepository: UserRepository
+    userRepository: UserRepository,
+    capybaraRepository: CapybaraRepository
 }

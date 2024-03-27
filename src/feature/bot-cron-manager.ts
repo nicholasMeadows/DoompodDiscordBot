@@ -3,22 +3,22 @@ import DiscordClient from "../model/discord-client";
 import {Repositories} from "../model/mongo-db-info";
 import GuildChannelCronInfo from "../model/guild-channel-cron-info";
 import CronAction from "../model/enum/cron-action";
-import {AttachmentBuilder, TextChannel} from "discord.js";
+import {TextChannel} from "discord.js";
 import WalkCompetitionFeature from "./walk-competition-feature";
 import Log from "../log";
-import {DAILY_CAPYBARA_URL} from "../constants";
-import DailyCapybaraResponse from "../model/daily-capybara-response";
-import HttpClient from "../http-client";
+import CapybaraFeature from "./capybara-feature";
 
 export default class BotCronManager {
     private _discordClient: DiscordClient;
     private _repositories: Repositories;
+    private _capybaraFeature: CapybaraFeature;
     private _crons: Array<ScheduledTask>;
 
     private logger = new Log(this);
 
-    constructor(discordClient: DiscordClient, repositories: Repositories) {
+    constructor(discordClient: DiscordClient, capybaraFeature: CapybaraFeature, repositories: Repositories) {
         this._discordClient = discordClient;
+        this._capybaraFeature = capybaraFeature;
         this._repositories = repositories;
         this._crons = new Array<ScheduledTask>();
     }
@@ -55,7 +55,7 @@ export default class BotCronManager {
                 this.handlePostWalkingResultsCron(guildChannelCronInfo);
                 break;
             case CronAction.DAILY_CAPYBARA:
-                this.handleDailyCapybara(guildChannelCronInfo);
+                this._capybaraFeature.sendDailyCapybaraCron(guildChannelCronInfo);
                 break;
         }
     }
@@ -93,51 +93,5 @@ export default class BotCronManager {
     private async handlePostWalkingResultsCron(guildChannelCronInfo: GuildChannelCronInfo) {
         const walkCompetitionFeature = new WalkCompetitionFeature(this._discordClient, this._repositories);
         walkCompetitionFeature.handlePostWalkingResultsCron(guildChannelCronInfo);
-    }
-
-    private async handleDailyCapybara(guildChannelCronInfo: GuildChannelCronInfo) {
-        const channelDiscordId = guildChannelCronInfo.channelDiscordId;
-        const discordChannel = await this._discordClient.channels.fetch(channelDiscordId);
-        if (discordChannel === null) {
-            this.logger.warn(`discord client returned null when fetching channel with discord id ${channelDiscordId}`);
-            return;
-        }
-
-        const httpClient = new HttpClient();
-        let dailyCapybaraResponse: DailyCapybaraResponse | undefined = undefined;
-        try {
-            dailyCapybaraResponse = await httpClient.request<DailyCapybaraResponse>(DAILY_CAPYBARA_URL, {
-                method: 'GET',
-                headers: {
-                    Accept: 'application.json',
-                    'Content-Type': 'application/json'
-                }
-            })
-        } catch (e) {
-            this.logger.warn(`Failed to get capybara from ${DAILY_CAPYBARA_URL}`, e);
-            return;
-        }
-
-        let imageResponse: Response | undefined = undefined;
-        try {
-            imageResponse = await fetch(dailyCapybaraResponse.image);
-        } catch (e) {
-            this.logger.warn(`Failed to fetch daily capybara image at url ${dailyCapybaraResponse.image}`);
-        }
-        let files = [];
-        if (imageResponse !== undefined) {
-            const imageArrayBuffer = await imageResponse.arrayBuffer();
-            const buffer = Buffer.from(imageArrayBuffer);
-            files.push(new AttachmentBuilder(buffer));
-        }
-
-        await (discordChannel as TextChannel).send({
-            content: `Name: ${dailyCapybaraResponse.name}\n` +
-                `Class: ${dailyCapybaraResponse.class}\n` +
-                `Muncher lvl: ${dailyCapybaraResponse.muncher_lvl}\n` +
-                `Relationship status: ${dailyCapybaraResponse.relationship_status}\n` +
-                `Weapon of choice: ${dailyCapybaraResponse.weapon}\n`,
-            files: files
-        })
     }
 }

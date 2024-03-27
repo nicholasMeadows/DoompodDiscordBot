@@ -5,7 +5,7 @@ import {Collection, Events, GatewayIntentBits, Partials, REST, Routes} from "dis
 import SlashCommand from "./model/slash-command";
 import Config from "./model/config";
 import FeatureClassesObj from "./model/feature-classes-obj";
-import {MongoClient} from "mongodb";
+import {GridFSBucket, MongoClient} from "mongodb";
 import BotCronManager from "./feature/bot-cron-manager";
 import MongoDbInfo, {Repositories} from "./model/mongo-db-info";
 import HallOfDootFeature from "./feature/hall-of-doot-feature";
@@ -13,6 +13,7 @@ import AutoReplyFeature from "./feature/auto-reply-feature";
 import Guild from "./entity/guild";
 import {
     MONGO_BOT_ASSET_COLLECTION_NAME,
+    MONGO_CAPYBARA_COLLECTION_NAME,
     MONGO_CRON_SCHEDULE_COLLECTION_NAME,
     MONGO_GUILD_CHANNEL_MESSAGE_COLLECTION_NAME,
     MONGO_GUILD_STICKER_COLLECTION_NAME
@@ -34,6 +35,9 @@ import GuildRepository from "./repository/guild-repository";
 import Log from "./log";
 import LogLevel from "./model/enum/log-level";
 import SlashCommandParams from "./model/slash-command-params";
+import CapybaraFeature from "./feature/capybara-feature";
+import Capybara from "./entity/capybara";
+import CapybaraRepository from "./repository/capybara-repository";
 
 class DoomBot {
     private logger = new Log(this);
@@ -133,6 +137,10 @@ class DoomBot {
             const guildStickerCollection = db.collection<Sticker>(MONGO_GUILD_STICKER_COLLECTION_NAME)
             const guildStickerRepository = new GuildStickerRepository(guildStickerCollection);
 
+            const capybaraCollection = db.collection<Capybara>(MONGO_CAPYBARA_COLLECTION_NAME);
+            const capybaraGridFSBucket = new GridFSBucket(db, {bucketName: 'capybara-image-bucket'});
+            const capybaraRepository = new CapybaraRepository(capybaraCollection, capybaraGridFSBucket);
+
             const dbObj: MongoDbInfo = {
                 mongoClient: client,
                 db: db,
@@ -145,7 +153,8 @@ class DoomBot {
                     cronScheduleRepository: cronScheduleRepository,
                     walkLogRepository: walkLogRepository,
                     minecraftReferenceRepository: minecraftReferenceRepository,
-                    userRepository: userRepository
+                    userRepository: userRepository,
+                    capybaraRepository: capybaraRepository
                 }
             }
             resolve(dbObj);
@@ -154,11 +163,13 @@ class DoomBot {
 
     initializeFeatureClasses(client: DiscordClient, mongoDbInfo: MongoDbInfo): FeatureClassesObj {
         const repositories = mongoDbInfo.repositories;
+        const capybaraFeature = new CapybaraFeature(client, repositories);
         return {
-            botCronManager: new BotCronManager(client, repositories),
+            botCronManager: new BotCronManager(client, capybaraFeature, repositories),
             autoReplyFeature: new AutoReplyFeature(repositories),
             hallOfDootFeature: new HallOfDootFeature(client, repositories),
-            minecraftReferenceFeature: new MinecraftReferenceFeature(client, repositories)
+            minecraftReferenceFeature: new MinecraftReferenceFeature(client, repositories),
+            capybaraFeature: capybaraFeature
         }
     }
 
