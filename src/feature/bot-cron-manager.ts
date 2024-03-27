@@ -8,6 +8,7 @@ import WalkCompetitionFeature from "./walk-competition-feature";
 import Log from "../log";
 import {DAILY_CAPYBARA_URL} from "../constants";
 import DailyCapybaraResponse from "../model/daily-capybara-response";
+import HttpClient from "../http-client";
 
 export default class BotCronManager {
     private _discordClient: DiscordClient;
@@ -102,29 +103,41 @@ export default class BotCronManager {
             return;
         }
 
-        const dailyCapybaraResponse = await fetch(DAILY_CAPYBARA_URL, {
-            method: 'GET',
-            headers: {
-                Accept: 'application.json',
-                'Content-Type': 'application/json'
-            }
-        });
-        const responseText = await dailyCapybaraResponse.text();
-        const responseJson: DailyCapybaraResponse = JSON.parse(responseText);
+        const httpClient = new HttpClient();
+        let dailyCapybaraResponse: DailyCapybaraResponse | undefined = undefined;
+        try {
+            dailyCapybaraResponse = await httpClient.request<DailyCapybaraResponse>(DAILY_CAPYBARA_URL, {
+                method: 'GET',
+                headers: {
+                    Accept: 'application.json',
+                    'Content-Type': 'application/json'
+                }
+            })
+        } catch (e) {
+            this.logger.warn(`Failed to get capybara from ${DAILY_CAPYBARA_URL}`, e);
+            return;
+        }
 
-        const imageResponse = await fetch(responseJson.image);
+        let imageResponse: Response | undefined = undefined;
+        try {
+            imageResponse = await fetch(dailyCapybaraResponse.image);
+        } catch (e) {
+            this.logger.warn(`Failed to fetch daily capybara image at url ${dailyCapybaraResponse.image}`);
+        }
+        let files = [];
+        if (imageResponse !== undefined) {
+            const imageArrayBuffer = await imageResponse.arrayBuffer();
+            const buffer = Buffer.from(imageArrayBuffer);
+            files.push(new AttachmentBuilder(buffer));
+        }
 
-        const imageArrayBuffer = await imageResponse.arrayBuffer();
-        const buffer = Buffer.from(imageArrayBuffer);
-
-        const file = new AttachmentBuilder(buffer);
         await (discordChannel as TextChannel).send({
-            content: `Name: ${responseJson.name}\n` +
-                `Class: ${responseJson.class}\n` +
-                `Muncher lvl: ${responseJson.muncher_lvl}\n` +
-                `Relationship status: ${responseJson.relationship_status}\n` +
-                `Weapon of choice: ${responseJson.weapon}\n`,
-            files: [file]
+            content: `Name: ${dailyCapybaraResponse.name}\n` +
+                `Class: ${dailyCapybaraResponse.class}\n` +
+                `Muncher lvl: ${dailyCapybaraResponse.muncher_lvl}\n` +
+                `Relationship status: ${dailyCapybaraResponse.relationship_status}\n` +
+                `Weapon of choice: ${dailyCapybaraResponse.weapon}\n`,
+            files: files
         })
     }
 }

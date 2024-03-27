@@ -9,37 +9,37 @@ export default class Log {
         this.instance = instance;
     }
 
-    debug(args: any) {
+    debug(...args: any[]) {
         if (!this.checkLogLevel(LogLevel.DEBUG))
             return;
         this.printMessage(LogLevel.DEBUG, args)
     }
 
-    info(args: any) {
+    info(...args: any[]) {
         if (!this.checkLogLevel(LogLevel.INFO))
             return;
         this.printMessage(LogLevel.INFO, args)
     }
 
-    warn(args: any) {
+    warn(...args: any[]) {
         if (!this.checkLogLevel(LogLevel.WARN))
             return;
         this.printMessage(LogLevel.WARN, args)
     }
 
-    error(args: any) {
+    error(...args: any[]) {
         if (!this.checkLogLevel(LogLevel.ERROR))
             return;
         this.printMessage(LogLevel.ERROR, args)
     }
 
-    fatal(args: any) {
+    fatal(...args: any[]) {
         if (!this.checkLogLevel(LogLevel.FATAL))
             return;
         this.printMessage(LogLevel.FATAL, args)
     }
 
-    private printMessage(requestedLogLevel: LogLevel, args: any) {
+    private printMessage(requestedLogLevel: LogLevel, args: any[]) {
         let colorStr = '';
         switch (requestedLogLevel) {
             case LogLevel.DEBUG:
@@ -58,7 +58,7 @@ export default class Log {
                 colorStr = '\x1b[31m'
                 break;
         }
-        console.log(`${colorStr}%s${colorStr}`, `${this.createDateStr()}-${Log.LOG_LEVEL}-${this.instance.constructor.name}:`, args, "\x1b[0m");
+        console.log(`${colorStr}%s${colorStr}`, `${this.createDateStr()}-${Log.LOG_LEVEL}-${this.instance.constructor.name}:`, ...args, "\x1b[0m");
     }
 
     private checkLogLevel(requestedLogLevelMessage: LogLevel) {
