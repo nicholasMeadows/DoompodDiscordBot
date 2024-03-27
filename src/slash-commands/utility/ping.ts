@@ -1,13 +1,12 @@
-import {ChatInputCommandInteraction, SlashCommandBuilder} from "discord.js";
-import DiscordClient from "../../model/discord-client";
-import {Repositories} from "../../model/mongo-db-info";
-import FeatureClassesObj from "../../model/feature-classes-obj";
+import {SlashCommandBuilder} from "discord.js";
+import SlashCommandParams from "../../model/slash-command-params";
 
 export default {
     data: new SlashCommandBuilder()
         .setName("ping")
         .setDescription("Replies with Pong!"),
-    async execute(discordClient: DiscordClient, features: FeatureClassesObj, repositories: Repositories, interaction: ChatInputCommandInteraction) {
+    async execute(params: SlashCommandParams) {
+        const interaction = params.interaction;
         await interaction.reply("Pong!");
     },
 };

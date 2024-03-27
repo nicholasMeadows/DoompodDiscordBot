@@ -1,13 +1,13 @@
-import {ChatInputCommandInteraction, SlashCommandBuilder} from "discord.js";
-import DiscordClient from "../model/discord-client";
-import {Repositories} from "../model/mongo-db-info";
-import FeatureClassesObj from "../model/feature-classes-obj";
+import {SlashCommandBuilder} from "discord.js";
+import SlashCommandParams from "../model/slash-command-params";
 
 export default {
     data: new SlashCommandBuilder()
         .setName("reload-crons")
         .setDescription("reload-crons"),
-    async execute(discordClient: DiscordClient, features: FeatureClassesObj, repositories: Repositories, interaction: ChatInputCommandInteraction) {
+    async execute(params: SlashCommandParams) {
+        const interaction = params.interaction;
+        const features = params.features;
         await interaction.deferReply();
         features.botCronManager.clearExistingCrons();
         await features.botCronManager.setupCrons()

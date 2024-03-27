@@ -1,15 +1,14 @@
-import {AttachmentBuilder, ChatInputCommandInteraction, SlashCommandBuilder} from "discord.js";
+import {AttachmentBuilder, SlashCommandBuilder} from "discord.js";
 import path from "node:path";
 import {DOOMPOD_HUG1_2023_FILE, IMAGE_PATH} from "../../constants";
-import DiscordClient from "../../model/discord-client";
-import {Repositories} from "../../model/mongo-db-info";
-import FeatureClassesObj from "../../model/feature-classes-obj";
+import SlashCommandParams from "../../model/slash-command-params";
 
 export default {
     data: new SlashCommandBuilder()
         .setName("doomhug1")
         .setDescription("Our very first Doom-pod hug circa December 2023"),
-    async execute(discordClient: DiscordClient, features: FeatureClassesObj, repositories: Repositories, interaction: ChatInputCommandInteraction) {
+    async execute(params: SlashCommandParams) {
+        const interaction = params.interaction;
         await interaction.deferReply();
         const attachmentPath = path.join(IMAGE_PATH, DOOMPOD_HUG1_2023_FILE)
         const file = new AttachmentBuilder(attachmentPath);

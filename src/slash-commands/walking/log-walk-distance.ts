@@ -1,8 +1,6 @@
-import {ChatInputCommandInteraction, SlashCommandBuilder} from "discord.js";
-import DiscordClient from "../../model/discord-client";
+import {SlashCommandBuilder} from "discord.js";
 import WalkCompetitionFeature from "../../feature/walk-competition-feature";
-import {Repositories} from "../../model/mongo-db-info";
-import FeatureClassesObj from "../../model/feature-classes-obj";
+import SlashCommandParams from "../../model/slash-command-params";
 
 export default {
     data: new SlashCommandBuilder()
@@ -12,7 +10,10 @@ export default {
             .setName('miles')
             .setDescription('the number of miles you walked today')
             .setRequired(true)),
-    async execute(discordClient: DiscordClient, features: FeatureClassesObj, repositories: Repositories, interaction: ChatInputCommandInteraction) {
+    async execute(params: SlashCommandParams) {
+        const interaction = params.interaction;
+        const discordClient = params.discordClient;
+        const repositories = params.repositories;
         await interaction.deferReply();
         const walkCompetitionFeature = new WalkCompetitionFeature(discordClient, repositories);
         const responseMsg = await walkCompetitionFeature.logWalking(interaction)

@@ -33,6 +33,7 @@ import UserRepository from "./repository/user-repository";
 import GuildRepository from "./repository/guild-repository";
 import Log from "./log";
 import LogLevel from "./model/enum/log-level";
+import SlashCommandParams from "./model/slash-command-params";
 
 class DoomBot {
     private logger = new Log(this);
@@ -180,10 +181,16 @@ class DoomBot {
                 return;
             }
             try {
+                const params: SlashCommandParams = {
+                    discordClient: client,
+                    features: featureClasses,
+                    repositories: repositories,
+                    interaction: interaction
+                }
                 if (appCommand !== undefined) {
-                    await appCommand.execute(client, featureClasses, repositories, interaction);
+                    await appCommand.execute(params);
                 } else if (ownerCommand !== undefined) {
-                    await ownerCommand.execute(client, featureClasses, repositories, interaction);
+                    await ownerCommand.execute(params);
                 }
             } catch (error) {
                 this.logger.error(error)
