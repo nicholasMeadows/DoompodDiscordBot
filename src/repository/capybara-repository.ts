@@ -1,13 +1,17 @@
 import {Collection, GridFSBucket, ObjectId} from "mongodb";
 import Capybara from "../entity/capybara";
+import Guild from "../entity/guild";
+import CapybaraClaim from "../entity/capybara-claim";
 
 export default class CapybaraRepository {
     declare _capybaraCollection: Collection<Capybara>;
     declare _capybaraGridFSBucket: GridFSBucket;
+    declare _guildChannelMessageCollection: Collection<Guild>;
 
-    constructor(capybaraCollection: Collection<Capybara>, capybaraGridFSBucket: GridFSBucket) {
+    constructor(capybaraCollection: Collection<Capybara>, capybaraGridFSBucket: GridFSBucket, guildChannelMessageCollection: Collection<Guild>) {
         this._capybaraCollection = capybaraCollection;
         this._capybaraGridFSBucket = capybaraGridFSBucket;
+        this._guildChannelMessageCollection = guildChannelMessageCollection;
     }
 
     async saveCapybara(capybara: Capybara) {
@@ -58,6 +62,69 @@ export default class CapybaraRepository {
                         $gt: startDate,
                         $lt: endDate
                     }
+                }
+            }
+        ])
+    }
+
+    findCapybarasClaimedBetweenDatesForGuildUser(guildObjectId: ObjectId, userObjectId: ObjectId, startDate: Date, endDate: Date) {
+        return this._guildChannelMessageCollection.aggregate<CapybaraClaim>([
+            {
+                $match: {
+                    _id: guildObjectId
+                }
+            }, {
+                $project: {
+                    _id: 0,
+                    users: 1
+                }
+            }, {
+                $unwind: {
+                    path: "$users"
+                }
+            }, {
+                $match: {
+                    "users._id": userObjectId,
+                    "users.capybarasClaimed": {
+                        $exists: true
+                    }
+                }
+            }, {
+                $project: {
+                    capybarasClaimed: "$users.capybarasClaimed"
+                }
+            }, {
+                $unwind: {
+                    path: "$capybarasClaimed"
+                }
+            }, {
+                $replaceRoot: {
+                    newRoot: "$capybarasClaimed"
+                }
+            }, {
+                $match: {
+                    claimedOn: {
+                        $gte: startDate,
+                        $lte: endDate
+                    }
+                }
+            }
+        ]);
+    }
+
+    findRandomCapybaraForClaim(capybaraObjectIdsAlreadyClaimed: ObjectId[]) {
+        return this._capybaraCollection.aggregate<Capybara>([
+            {
+                $match: {
+                    _id: {
+                        $not: {
+                            $in: capybaraObjectIdsAlreadyClaimed
+                        }
+                    }
+                }
+            }, {
+                $sample: {
+                    size: 1
                 }
             }
         ])

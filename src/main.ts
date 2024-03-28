@@ -139,7 +139,7 @@ class DoomBot {
 
             const capybaraCollection = db.collection<Capybara>(MONGO_CAPYBARA_COLLECTION_NAME);
             const capybaraGridFSBucket = new GridFSBucket(db, {bucketName: 'capybara-image-bucket'});
-            const capybaraRepository = new CapybaraRepository(capybaraCollection, capybaraGridFSBucket);
+            const capybaraRepository = new CapybaraRepository(capybaraCollection, capybaraGridFSBucket, guildChannelMessageCollection);
 
             const dbObj: MongoDbInfo = {
                 mongoClient: client,
