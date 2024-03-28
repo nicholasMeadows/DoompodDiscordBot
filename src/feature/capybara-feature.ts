@@ -72,11 +72,7 @@ export default class CapybaraFeature {
 
         const capybaraUserClaim = new CapybaraClaim();
         capybaraUserClaim.claimedCapybaraObjectId = capybaraToClaim._id;
-        const now = new Date();
-        let timeOffsetInMS: number = now.getTimezoneOffset() * 60000;
-        now.setTime(now.getTime() - timeOffsetInMS);
-        capybaraUserClaim.claimedOn = now;
-
+        
         if (userEntity.capybarasClaimed === undefined) {
             userEntity.capybarasClaimed = [];
         }
@@ -209,8 +205,6 @@ export default class CapybaraFeature {
 
     async findCapybaraClaimsForToday(guildObjectId: ObjectId, userObjectId: ObjectId) {
         const now = new Date();
-        let timeOffsetInMS: number = now.getTimezoneOffset() * 60000;
-        now.setTime(now.getTime() - timeOffsetInMS);
         const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
         const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
         return await this._repositories.capybaraRepository.findCapybarasClaimedBetweenDatesForGuildUser(guildObjectId, userObjectId, startDate, endDate).toArray();
