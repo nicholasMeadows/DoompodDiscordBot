@@ -10,6 +10,6 @@ export default {
         const features = params.features;
         await interaction.deferReply();
         const discordReply = await features.capybaraFeature.myCapybaraDiscordEmbed(interaction)
-        interaction.editReply(discordReply);
+        await interaction.editReply(discordReply);
     },
 };

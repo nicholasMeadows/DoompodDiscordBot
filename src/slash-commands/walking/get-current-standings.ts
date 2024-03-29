@@ -13,6 +13,6 @@ export default {
         await interaction.deferReply();
         const walkCompetitionFeature = new WalkCompetitionFeature(discordClient, repositories);
         const responseMsg = await walkCompetitionFeature.getTop3AlongWithMyMiles(interaction);
-        interaction.editReply({content: responseMsg});
+        await interaction.editReply({content: responseMsg});
     },
 };

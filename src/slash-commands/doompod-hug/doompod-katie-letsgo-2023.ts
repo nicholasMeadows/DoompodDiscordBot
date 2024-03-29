@@ -12,6 +12,6 @@ export default {
         await interaction.deferReply();
         const attachmentPath = path.join(IMAGE_PATH, DOOMPOD_KATIE_LETS_GO_2023_FILE)
         const file = new AttachmentBuilder(attachmentPath);
-        interaction.editReply({files: [file]});
+        await interaction.editReply({files: [file]});
     },
 };

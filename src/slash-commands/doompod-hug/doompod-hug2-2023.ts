@@ -14,6 +14,6 @@ export default {
         await interaction.deferReply();
         const attachmentPath = path.join(IMAGE_PATH, DOOMPOD_HUG2_2023_FILE);
         const file = new AttachmentBuilder(attachmentPath);
-        interaction.editReply({files: [file]});
+        await interaction.editReply({files: [file]});
     },
 };

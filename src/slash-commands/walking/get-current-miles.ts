@@ -10,9 +10,9 @@ export default {
         const interaction = params.interaction;
         const discordClient = params.discordClient;
         const repositories = params.repositories;
-        interaction.deferReply();
+        await interaction.deferReply();
         const walkCompetitionFeature = new WalkCompetitionFeature(discordClient, repositories);
         const responseMsg = await walkCompetitionFeature.myMiles(interaction)
-        interaction.editReply({content: responseMsg});
+        await interaction.editReply({content: responseMsg});
     },
 };

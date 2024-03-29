@@ -9,9 +9,9 @@ export default {
         .setDescription("For when youre feeling scoob"),
     async execute(params: SlashCommandParams) {
         const interaction = params.interaction;
-        interaction.deferReply();
+        await interaction.deferReply();
         const attachmentPath = path.join(IMAGE_PATH, LEGO_SCOOBE_FILE)
         const file = new AttachmentBuilder(attachmentPath);
-        interaction.editReply({files: [file]});
+        await interaction.editReply({files: [file]});
     },
 };

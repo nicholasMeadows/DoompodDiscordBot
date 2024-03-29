@@ -10,6 +10,6 @@ export default {
         const capybaraFeature = params.features.capybaraFeature;
         await interaction.deferReply();
         const claimReply = await capybaraFeature.claimCapybara(params.interaction);
-        interaction.editReply(claimReply);
+        await interaction.editReply(claimReply);
     },
 };
