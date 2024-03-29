@@ -1,7 +1,17 @@
 import path from "node:path";
 import fs from "node:fs";
 import DiscordClient from "./model/discord-client";
-import {Collection, Events, GatewayIntentBits, Partials, REST, Routes} from "discord.js";
+import {
+    ButtonComponent,
+    Collection,
+    ComponentType,
+    Events,
+    GatewayIntentBits,
+    InteractionType,
+    Partials,
+    REST,
+    Routes
+} from "discord.js";
 import SlashCommand from "./model/slash-command";
 import Config from "./model/config";
 import FeatureClassesObj from "./model/feature-classes-obj";
@@ -16,7 +26,9 @@ import {
     MONGO_CAPYBARA_COLLECTION_NAME,
     MONGO_CRON_SCHEDULE_COLLECTION_NAME,
     MONGO_GUILD_CHANNEL_MESSAGE_COLLECTION_NAME,
-    MONGO_GUILD_STICKER_COLLECTION_NAME
+    MONGO_GUILD_STICKER_COLLECTION_NAME,
+    MY_CAPYBARA_NEXT_CAPY_BUTTON_ID,
+    MY_CAPYBARA_PREVIOUS_CAPY_BUTTON_ID
 } from "./constants";
 import BotAsset from "./entity/bot-asset";
 import BotAssetRepository from "./repository/bot-asset-repository";
@@ -64,7 +76,7 @@ class DoomBot {
 
         client.appCommands = await this.loadSlashCommands();
         client.ownerCommands = await this.loadOwnerSlashCommands();
-
+        
         // this.deploySlashCommands(client.commands, config);
         if (process.env.DEPLOY_SLASH_COMMANDS) {
             await this.deploySlashCommands(client.appCommands, client.ownerCommands, config);
@@ -184,6 +196,17 @@ class DoomBot {
             featureClasses.minecraftReferenceFeature.handle(message);
         });
         client.on(Events.InteractionCreate, async (interaction) => {
+            if (interaction.type === InteractionType.MessageComponent) {
+                const componentType = interaction.componentType;
+                if (componentType === ComponentType.Button) {
+                    const component = interaction.component as ButtonComponent;
+                    const componentCustomId = component.customId;
+                    if (componentCustomId === MY_CAPYBARA_PREVIOUS_CAPY_BUTTON_ID || componentCustomId === MY_CAPYBARA_NEXT_CAPY_BUTTON_ID) {
+                        featureClasses.capybaraFeature.handleMyCapybaraNexPreviousButtonClick(interaction, component);
+                    }
+                }
+            }
+
             if (!interaction.isChatInputCommand()) return;
             const appCommand = client.appCommands.get(interaction.commandName);
             const ownerCommand = client.ownerCommands.get(interaction.commandName);

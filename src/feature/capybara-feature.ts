@@ -2,8 +2,16 @@ import {Repositories} from "../model/mongo-db-info";
 import GuildChannelCronInfo from "../model/guild-channel-cron-info";
 import HttpClient from "../http-client";
 import DailyCapybaraResponse from "../model/daily-capybara-response";
-import {DAILY_CAPYBARA_URL} from "../constants";
-import {AttachmentBuilder, ChatInputCommandInteraction, TextChannel} from "discord.js";
+import {DAILY_CAPYBARA_URL, MY_CAPYBARA_NEXT_CAPY_BUTTON_ID, MY_CAPYBARA_PREVIOUS_CAPY_BUTTON_ID} from "../constants";
+import {
+    AttachmentBuilder,
+    ButtonComponent,
+    ButtonInteraction,
+    ChatInputCommandInteraction,
+    InteractionEditReplyOptions,
+    MessagePayload,
+    TextChannel
+} from "discord.js";
 import DiscordClient from "../model/discord-client";
 import Log from "../log";
 import Capybara from "../entity/capybara";
@@ -20,6 +28,154 @@ export default class CapybaraFeature {
     constructor(discordClient: DiscordClient, repositories: Repositories) {
         this._discordClient = discordClient;
         this._repositories = repositories;
+    }
+
+    async handleMyCapybaraNexPreviousButtonClick(interaction: ButtonInteraction, buttonComponent: ButtonComponent) {
+        const guildDiscordId = interaction.guildId;
+        if (guildDiscordId === null) {
+            this.logger.info('Button was clicked with no guild discord id on interaction');
+            return;
+        }
+        const guildRepo = this._repositories.guildRepository;
+        const guildObjectIdResult = await guildRepo.findGuildObjectIdByGuildDiscordId(guildDiscordId).next();
+        if (guildObjectIdResult === null) {
+            this.logger.info('Guild discordId not found in DB');
+            return;
+        }
+        const guildObjectId = guildObjectIdResult.guildObjectId;
+
+        const userDiscordId = interaction.user.id;
+        const userRepo = this._repositories.userRepository;
+        const userEntity = await userRepo.findGuildUser(guildObjectId, userDiscordId).next();
+        if (userEntity === null) {
+            this.logger.info('User entity not found.')
+            return;
+        }
+
+        const lastDisplayedCapybaraClaimObjectId = userEntity.myCapybarasLastClaimedObjectId;
+        const capybaraRepo = this._repositories.capybaraRepository;
+        const lastDisplayedCapybaraClaim = await capybaraRepo.findCapybaraClaimByObjectId(guildObjectId, userEntity._id, lastDisplayedCapybaraClaimObjectId).next();
+        if (lastDisplayedCapybaraClaim === null) {
+            this.logger.info('last displayed capybara claim not found in db. ');
+            return;
+        }
+
+        let nextCapybaraClaimToShow;
+        if (buttonComponent.customId === MY_CAPYBARA_NEXT_CAPY_BUTTON_ID) {
+            nextCapybaraClaimToShow = await capybaraRepo.findMostRecentCapybaraClaimAfterDate(guildDiscordId, userDiscordId, lastDisplayedCapybaraClaim.claimedOn).next();
+        } else if (buttonComponent.customId === MY_CAPYBARA_PREVIOUS_CAPY_BUTTON_ID) {
+            nextCapybaraClaimToShow = await capybaraRepo.findMostRecentCapybaraClaimBeforeDate(guildDiscordId, userDiscordId, lastDisplayedCapybaraClaim.claimedOn).next();
+        }
+        if (nextCapybaraClaimToShow === undefined || nextCapybaraClaimToShow === null) {
+            this.logger.info('Did not find next capybara to show.')
+            return;
+        }
+        const imgBuffer = await this.fetchCapybaraImgBuffer(nextCapybaraClaimToShow.capybara, new Date());
+        if (imgBuffer === undefined) {
+            this.logger.info('img buffer came back undefined');
+            return;
+        }
+
+        userEntity.myCapybarasLastClaimedObjectId = nextCapybaraClaimToShow._id;
+        await userRepo.saveGuildUser(guildObjectId, userEntity);
+        const claimCountAfterResult = await capybaraRepo.countCapybarasClaimedAfterDate(guildObjectIdResult.guildObjectId, userEntity._id, nextCapybaraClaimToShow.claimedOn).next()
+        const claimCountBeforeResult = await capybaraRepo.countCapybarasClaimedBeforeDate(guildObjectIdResult.guildObjectId, userEntity._id, nextCapybaraClaimToShow.claimedOn).next()
+
+        const claimCountAfter = claimCountAfterResult === null ? 0 : claimCountAfterResult.claimedCapybaras;
+        const claimCountBefore = claimCountBeforeResult === null ? 0 : claimCountBeforeResult.claimedCapybaras;
+        const discordMessage = this.createDiscordMessage(nextCapybaraClaimToShow, imgBuffer, claimCountAfter, claimCountBefore);
+        await interaction.update(discordMessage);
+    }
+
+    async myCapybaraDiscordEmbed(interaction: ChatInputCommandInteraction): Promise<MessagePayload | InteractionEditReplyOptions> {
+        const guildDiscordId = interaction.guildId;
+        if (guildDiscordId === null) {
+            this.logger.info('My-capybara command did not have guild discord id. Aborting')
+            return {
+                content: 'This command must be run from within a server.'
+            }
+        }
+
+        const guildRepository = this._repositories.guildRepository;
+        const guildObjectIdResult = await guildRepository.findGuildObjectIdByGuildDiscordId(guildDiscordId).next();
+        if (guildObjectIdResult === null) {
+            this.logger.info('Could not find guild in DB');
+            return {
+                content: 'Could not find your server'
+            }
+        }
+        const guildObjectId = guildObjectIdResult.guildObjectId;
+
+        const userDiscordId = interaction.user.id;
+
+        const capybaraRepo = this._repositories.capybaraRepository;
+        const mostRecentCapybaraClaim = await capybaraRepo.findMostRecentCapybaraClaim(guildObjectId, userDiscordId).next();
+
+        if (mostRecentCapybaraClaim === null) {
+            this.logger.info(`User id: ${userDiscordId}, in Guild id: ${guildDiscordId} mongo did not return most recent capybara claim.`)
+            return {
+                content: 'Did not find any claimed capybaras'
+            }
+        }
+
+        let userEntity = await this._repositories.userRepository.findGuildUser(guildObjectId, userDiscordId).next();
+
+        if (userEntity === null) {
+            userEntity = new User();
+            userEntity.discordUserId = userDiscordId;
+            await this._repositories.userRepository.saveGuildUser(guildObjectIdResult.guildObjectId, userEntity)
+        }
+
+        userEntity.myCapybarasLastClaimedObjectId = mostRecentCapybaraClaim._id;
+        await this._repositories.userRepository.saveGuildUser(guildObjectIdResult.guildObjectId, userEntity);
+
+        const imgBuffer = await this.fetchCapybaraImgBuffer(mostRecentCapybaraClaim.capybara, new Date());
+        if (imgBuffer === undefined) {
+            this.logger.warn('Failed to get capybara img buffer.')
+            return {
+                content: 'Something went wrong...'
+            }
+        }
+        const claimCountAfterResult = await capybaraRepo.countCapybarasClaimedAfterDate(guildObjectIdResult.guildObjectId, userEntity._id, mostRecentCapybaraClaim.claimedOn).next()
+        const claimCountBeforeResult = await capybaraRepo.countCapybarasClaimedBeforeDate(guildObjectIdResult.guildObjectId, userEntity._id, mostRecentCapybaraClaim.claimedOn).next()
+
+        const claimCountAfter = claimCountAfterResult === null ? 0 : claimCountAfterResult.claimedCapybaras;
+        const claimCountBefore = claimCountBeforeResult === null ? 0 : claimCountBeforeResult.claimedCapybaras;
+
+        return this.createDiscordMessage(mostRecentCapybaraClaim, imgBuffer, claimCountAfter, claimCountBefore);
+    }
+
+    private createDiscordMessage(capybaraClaim: {
+        _id: ObjectId,
+        claimedOn: Date,
+        claimedCapybaraObjectId: ObjectId,
+        capybara: Capybara
+    }, imgBuffer: Buffer, claimsAfterCurrent: number, claimsBeforeCurrent: number): MessagePayload | InteractionEditReplyOptions {
+        return {
+            content: this.createCapybaraStr(capybaraClaim.capybara),
+            files: [new AttachmentBuilder(imgBuffer)],
+            components: [
+                {
+                    type: 1,
+                    components: [
+                        {
+                            style: 1,
+                            label: `Previous`,
+                            custom_id: MY_CAPYBARA_PREVIOUS_CAPY_BUTTON_ID,
+                            disabled: claimsBeforeCurrent === 0,
+                            type: 2
+                        },
+                        {
+                            style: 1,
+                            label: `Next`,
+                            custom_id: MY_CAPYBARA_NEXT_CAPY_BUTTON_ID,
+                            disabled: claimsAfterCurrent === 0,
+                            type: 2
+                        }
+                    ]
+                }
+            ]
+        }
     }
 
     async claimCapybara(interaction: ChatInputCommandInteraction): Promise<{ content: string, files?: any[] }> {
@@ -72,7 +228,7 @@ export default class CapybaraFeature {
 
         const capybaraUserClaim = new CapybaraClaim();
         capybaraUserClaim.claimedCapybaraObjectId = capybaraToClaim._id;
-        
+
         if (userEntity.capybarasClaimed === undefined) {
             userEntity.capybarasClaimed = [];
         }

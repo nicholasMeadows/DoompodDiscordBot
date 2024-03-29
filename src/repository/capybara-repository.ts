@@ -129,4 +129,326 @@ export default class CapybaraRepository {
             }
         ])
     }
+
+    countCapybarasClaimedAfterDate(guildObjectId: ObjectId, userObjectId: ObjectId, date: Date) {
+        return this._guildChannelMessageCollection.aggregate<{ claimedCapybaras: number }>([
+            {
+                $match: {
+                    _id: guildObjectId
+                }
+            }, {
+                $project: {
+                    _id: 0,
+                    users: 1
+                }
+            }, {
+                $unwind: {
+                    path: "$users"
+                }
+            }, {
+                $match: {
+                    "users._id": userObjectId
+                }
+            }, {
+                $project: {
+                    claimedCapybaras: "$users.capybarasClaimed"
+                }
+            }, {
+                $unwind: {
+                    path: "$claimedCapybaras"
+                }
+            }, {
+                $match: {
+                    "claimedCapybaras.claimedOn": {
+                        $gt: date
+                    }
+                }
+            }, {
+                $count: "claimedCapybaras"
+            }
+        ])
+    }
+
+    countCapybarasClaimedBeforeDate(guildObjectId: ObjectId, userObjectId: ObjectId, date: Date) {
+        return this._guildChannelMessageCollection.aggregate<{ claimedCapybaras: number }>([
+            {
+                $match: {
+                    _id: guildObjectId
+                }
+            }, {
+                $project: {
+                    _id: 0,
+                    users: 1
+                }
+            }, {
+                $unwind: {
+                    path: "$users"
+                }
+            }, {
+                $match: {
+                    "users._id": userObjectId
+                }
+            }, {
+                $project: {
+                    claimedCapybaras: "$users.capybarasClaimed"
+                }
+            }, {
+                $unwind: {
+                    path: "$claimedCapybaras"
+                }
+            }, {
+                $match: {
+                    "claimedCapybaras.claimedOn": {
+                        $lt: date
+                    }
+                }
+            }, {
+                $count: "claimedCapybaras"
+            }
+        ])
+    }
+
+    findMostRecentCapybaraClaim(guildObjectId: ObjectId, userDiscordId: string) {
+        return this._guildChannelMessageCollection.aggregate<{
+            _id: ObjectId,
+            claimedOn: Date,
+            claimedCapybaraObjectId: ObjectId,
+            capybara: Capybara
+        }>([
+            {
+                $match: {
+                    _id: guildObjectId
+                }
+            }, {
+                $project: {
+                    _id: 0,
+                    users: 1
+                }
+            }, {
+                $unwind: {
+                    path: "$users"
+                }
+            }, {
+                $match: {
+                    "users.discordUserId": userDiscordId
+                }
+            }, {
+                $project: {
+                    capybarasClaimed: "$users.capybarasClaimed"
+                }
+            }, {
+                $unwind: {
+                    path: "$capybarasClaimed"
+                }
+            }, {
+                $replaceRoot: {
+                    newRoot: "$capybarasClaimed"
+                }
+            }, {
+                $sort: {
+                    claimedOn: 1
+                }
+            }, {
+                $limit: 1
+            }, {
+                $lookup: {
+                    from: "capybara",
+                    localField: "claimedCapybaraObjectId",
+                    foreignField: "_id",
+                    as: "capybara"
+                }
+            }, {
+                $unwind: {
+                    path: "$capybara"
+                }
+            }
+        ])
+    }
+
+    findMostRecentCapybaraClaimAfterDate(guildDiscordId: string, userDiscordId: string, after: Date) {
+        return this._guildChannelMessageCollection.aggregate<{
+            _id: ObjectId,
+            claimedOn: Date,
+            claimedCapybaraObjectId: ObjectId,
+            capybara: Capybara
+        }>([
+            {
+                $match: {
+                    discordId: guildDiscordId
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    users: 1
+                }
+            },
+            {
+                $unwind: {
+                    path: "$users"
+                }
+            },
+            {
+                $match: {
+                    "users.discordUserId": userDiscordId
+                }
+            },
+            {
+                $project: {
+                    capybarasClaimed: "$users.capybarasClaimed"
+                }
+            },
+            {
+                $unwind: {
+                    path: "$capybarasClaimed"
+                }
+            },
+            {
+                $match: {
+                    "capybarasClaimed.claimedOn": {
+                        $gt: after
+                    }
+                }
+            },
+            {
+                $replaceRoot: {
+                    newRoot: "$capybarasClaimed"
+                }
+            },
+            {
+                $sort: {
+                    claimedOn: 1
+                }
+            },
+            {
+                $limit: 1
+            },
+            {
+                $lookup: {
+                    from: "capybara",
+                    localField: "claimedCapybaraObjectId",
+                    foreignField: "_id",
+                    as: "capybara"
+                }
+            },
+            {
+                $unwind: {
+                    path: "$capybara"
+                }
+            }
+        ])
+    }
+
+    findMostRecentCapybaraClaimBeforeDate(guildDiscordId: string, userDiscordId: string, before: Date) {
+        return this._guildChannelMessageCollection.aggregate<{
+            _id: ObjectId,
+            claimedOn: Date,
+            claimedCapybaraObjectId: ObjectId,
+            capybara: Capybara
+        }>([
+            {
+                $match: {
+                    discordId: guildDiscordId
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    users: 1
+                }
+            },
+            {
+                $unwind: {
+                    path: "$users"
+                }
+            },
+            {
+                $match: {
+                    "users.discordUserId": userDiscordId
+                }
+            },
+            {
+                $project: {
+                    capybarasClaimed: "$users.capybarasClaimed"
+                }
+            },
+            {
+                $unwind: {
+                    path: "$capybarasClaimed"
+                }
+            },
+            {
+                $match: {
+                    "capybarasClaimed.claimedOn": {
+                        $lt: before
+                    }
+                }
+            },
+            {
+                $replaceRoot: {
+                    newRoot: "$capybarasClaimed"
+                }
+            },
+            {
+                $sort: {
+                    claimedOn: 1
+                }
+            },
+            {
+                $limit: 1
+            },
+            {
+                $lookup: {
+                    from: "capybara",
+                    localField: "claimedCapybaraObjectId",
+                    foreignField: "_id",
+                    as: "capybara"
+                }
+            },
+            {
+                $unwind: {
+                    path: "$capybara"
+                }
+            }
+        ])
+    }
+
+    findCapybaraClaimByObjectId(guildObjectId: ObjectId, userObjectId: ObjectId, claimObjectId: ObjectId) {
+        return this._guildChannelMessageCollection.aggregate<CapybaraClaim>([
+            {
+                $match: {
+                    _id: guildObjectId
+                },
+            }, {
+                $project: {
+                    _id: 0,
+                    users: 1,
+                },
+            }, {
+                $unwind: {
+                    path: "$users",
+                },
+            }, {
+                $match: {
+                    "users._id": userObjectId
+                },
+            }, {
+                $project: {
+                    claims: "$users.capybarasClaimed",
+                },
+            }, {
+                $unwind: {
+                    path: "$claims",
+                },
+            }, {
+                $match: {
+                    "claims._id": claimObjectId
+                },
+            }, {
+                $replaceRoot: {
+                    newRoot: "$claims",
+                },
+            },
+        ])
+    }
 }
