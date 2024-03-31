@@ -8,7 +8,9 @@ export default {
     async execute(params: SlashCommandParams) {
         const interaction = params.interaction;
         const capybaraFeature = params.features.capybaraFeature;
-        await interaction.deferReply();
+        if (!interaction.deferred) {
+            await interaction.deferReply();
+        }
         const claimReply = await capybaraFeature.claimCapybara(params.interaction);
         await interaction.editReply(claimReply);
     },

@@ -11,7 +11,9 @@ export default {
         ),
     async execute(params: SlashCommandParams) {
         const interaction = params.interaction;
-        await interaction.deferReply();
+        if (!interaction.deferred) {
+            await interaction.deferReply();
+        }
         const attachmentPath = path.join(IMAGE_PATH, DOOMPOD_HUG2_2023_FILE);
         const file = new AttachmentBuilder(attachmentPath);
         await interaction.editReply({files: [file]});

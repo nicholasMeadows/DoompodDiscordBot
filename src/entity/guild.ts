@@ -5,6 +5,7 @@ import HallOfDootConfig from "./hall-of-doot-config";
 import MinecraftReference from "./minecraft-reference";
 import User from "./user";
 import UserWalkLog from "./user-walk-log";
+import ChannelCommandExecutionProfile from "./channel-command-execution-profile";
 
 export default class Guild {
     declare _id: ObjectId;
@@ -18,6 +19,7 @@ export default class Guild {
     declare minecraftReferenceRecord: number;
     declare userWalkLogs: UserWalkLog[];
     declare walkLoggingCompetitionResultsChannelObjectId: ObjectId;
+    declare channelCommandExecutionProfiles: ChannelCommandExecutionProfile[];
 
     constructor() {
         this._id = new ObjectId();

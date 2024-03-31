@@ -9,7 +9,9 @@ export default {
         .setDescription("3,2,1 HUG!! circa December 2023"),
     async execute(params: SlashCommandParams) {
         const interaction = params.interaction;
-        await interaction.deferReply();
+        if (!interaction.deferred) {
+            await interaction.deferReply();
+        }
         const attachmentPath = path.join(IMAGE_PATH, DOOMPOD_KATIE_LETS_GO_2023_FILE)
         const file = new AttachmentBuilder(attachmentPath);
         await interaction.editReply({files: [file]});

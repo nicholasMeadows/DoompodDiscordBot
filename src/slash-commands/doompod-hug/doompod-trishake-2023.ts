@@ -9,7 +9,9 @@ export default {
         .setDescription("The trinity known as tri-shake circa December 2023"),
     async execute(params: SlashCommandParams) {
         const interaction = params.interaction;
-        await interaction.deferReply();
+        if (!interaction.deferred) {
+            await interaction.deferReply();
+        }
         const attachmentFile = path.join(IMAGE_PATH, DOOMPOD_TRISHAKE_2023_FILE);
         const file = new AttachmentBuilder(attachmentFile);
         await interaction.editReply({files: [file]});

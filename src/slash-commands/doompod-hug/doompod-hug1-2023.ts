@@ -9,7 +9,9 @@ export default {
         .setDescription("Our very first Doom-pod hug circa December 2023"),
     async execute(params: SlashCommandParams) {
         const interaction = params.interaction;
-        await interaction.deferReply();
+        if (!interaction.deferred) {
+            await interaction.deferReply();
+        }
         const attachmentPath = path.join(IMAGE_PATH, DOOMPOD_HUG1_2023_FILE)
         const file = new AttachmentBuilder(attachmentPath);
         await interaction.editReply({files: [file]});

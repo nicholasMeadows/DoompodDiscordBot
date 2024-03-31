@@ -3,6 +3,7 @@ import fs from "node:fs";
 import DiscordClient from "./model/discord-client";
 import {
     ButtonComponent,
+    ChatInputCommandInteraction,
     Collection,
     ComponentType,
     Events,
@@ -23,6 +24,7 @@ import AutoReplyFeature from "./feature/auto-reply-feature";
 import Guild from "./entity/guild";
 import {
     MONGO_BOT_ASSET_COLLECTION_NAME,
+    MONGO_BOT_COMMAND_NAME,
     MONGO_CAPYBARA_COLLECTION_NAME,
     MONGO_CRON_SCHEDULE_COLLECTION_NAME,
     MONGO_GUILD_CHANNEL_MESSAGE_COLLECTION_NAME,
@@ -46,10 +48,13 @@ import UserRepository from "./repository/user-repository";
 import GuildRepository from "./repository/guild-repository";
 import Log from "./log";
 import LogLevel from "./model/enum/log-level";
-import SlashCommandParams from "./model/slash-command-params";
 import CapybaraFeature from "./feature/capybara-feature";
 import Capybara from "./entity/capybara";
 import CapybaraRepository from "./repository/capybara-repository";
+import BotCommandRepository from "./repository/bot-command-repository";
+import BotCommand from "./entity/bot-command";
+import ChannelCommandExecutionProfileRepository from "./repository/channel-command-execution-profile-repository";
+import SlashCommandParams from "./model/slash-command-params";
 
 class DoomBot {
     private logger = new Log(this);
@@ -76,11 +81,13 @@ class DoomBot {
 
         client.appCommands = await this.loadSlashCommands();
         client.ownerCommands = await this.loadOwnerSlashCommands();
-        
+
         // this.deploySlashCommands(client.commands, config);
         if (process.env.DEPLOY_SLASH_COMMANDS) {
             await this.deploySlashCommands(client.appCommands, client.ownerCommands, config);
         }
+
+        await this.loadCommandsIntoDb(config, mongoDbInfo.repositories);
         // Log in to Discord with your client's token
         await client.login(config.token);
     }
@@ -153,6 +160,10 @@ class DoomBot {
             const capybaraGridFSBucket = new GridFSBucket(db, {bucketName: 'capybara-image-bucket'});
             const capybaraRepository = new CapybaraRepository(capybaraCollection, capybaraGridFSBucket, guildChannelMessageCollection);
 
+            const botCommandCollection = db.collection<BotCommand>(MONGO_BOT_COMMAND_NAME);
+            const botCommandRepository = new BotCommandRepository(botCommandCollection);
+
+            const channelCommandExecutionProfileRepository = new ChannelCommandExecutionProfileRepository(guildChannelMessageCollection, botCommandCollection);
             const dbObj: MongoDbInfo = {
                 mongoClient: client,
                 db: db,
@@ -166,7 +177,9 @@ class DoomBot {
                     walkLogRepository: walkLogRepository,
                     minecraftReferenceRepository: minecraftReferenceRepository,
                     userRepository: userRepository,
-                    capybaraRepository: capybaraRepository
+                    capybaraRepository: capybaraRepository,
+                    botCommandRepository: botCommandRepository,
+                    channelCommandExecutionProfileRepository: channelCommandExecutionProfileRepository
                 }
             }
             resolve(dbObj);
@@ -214,6 +227,13 @@ class DoomBot {
                 this.logger.warn(`No command matching ${interaction.commandName} was found.`);
                 return;
             }
+
+            await interaction.deferReply();
+            const continueExecution = await this.checkCommandExecutionProfile(repositories, interaction);
+            if (!continueExecution) {
+                return;
+            }
+
             try {
                 const params: SlashCommandParams = {
                     discordClient: client,
@@ -341,6 +361,60 @@ class DoomBot {
             // And of course, make sure you catch and log any errors!
             this.logger.error(error);
         }
+    }
+
+    async loadCommandsIntoDb(config: Config, repositories: Repositories) {
+        // Construct and prepare an instance of the REST module
+        const rest = new REST().setToken(config.token);
+
+        try {
+            this.logger.info(
+                `Getting commands to load into DB`
+            );
+
+            const commands = (await rest.get(Routes.applicationCommands(config.clientId)) as any[]);
+            for (const command of commands) {
+                const botCommand = new BotCommand();
+                botCommand.commandName = command.name;
+                botCommand.discordId = command.id;
+                botCommand.commandDescription = command.description;
+                this.logger.info(`Saving ${botCommand.commandName} command into database.`)
+                await repositories.botCommandRepository.saveBotCommand(botCommand);
+            }
+        } catch (error) {
+            // And of course, make sure you catch and log any errors!
+            this.logger.error(error);
+        }
+    }
+
+    async checkCommandExecutionProfile(repositories: Repositories, interaction: ChatInputCommandInteraction) {
+        const commandDiscordId = interaction.commandId;
+        const guildDiscordId = interaction.guildId;
+        const channelDiscordId = interaction.channelId;
+        this.logger.info(`Channel discord id is ${channelDiscordId}`);
+        if (guildDiscordId === null) {
+            this.logger.info(`Guild discord id ${guildDiscordId} was null`)
+            return true;
+        }
+        const channelCommandExecutionProfileRepo = repositories.channelCommandExecutionProfileRepository;
+        const executionProfileInfo = await channelCommandExecutionProfileRepo.findExecutionProfile(commandDiscordId, guildDiscordId).next();
+
+        if (executionProfileInfo === null) {
+            this.logger.info(`Execution profile info was null form guild discord id ${guildDiscordId} and command discord id ${commandDiscordId}`);
+            return true;
+        }
+        const executionProfile = executionProfileInfo.executionProfile;
+        const notAllowedChannelDiscordIds = executionProfile.notAllowedChannelDiscordIds
+        this.logger.info(`Not allowed channel discord ids ${notAllowedChannelDiscordIds}`)
+        if (notAllowedChannelDiscordIds.includes('*') || notAllowedChannelDiscordIds.includes(channelDiscordId)) {
+            await interaction.editReply({
+                content: 'Cannot use this command in this channel.'
+            })
+            return false;
+        }
+        const allowedChannelDiscordIds = executionProfile.allowedChannelDiscordIds;
+        this.logger.info(`Allowed channel discord ids ${allowedChannelDiscordIds}`)
+        return allowedChannelDiscordIds.includes('*') || allowedChannelDiscordIds.includes(channelDiscordId);
     }
 }
 

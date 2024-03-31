@@ -8,7 +8,9 @@ export default {
     async execute(params: SlashCommandParams) {
         const interaction = params.interaction;
         const features = params.features;
-        await interaction.deferReply();
+        if (!interaction.deferred) {
+            await interaction.deferReply();
+        }
         const discordReply = await features.capybaraFeature.myCapybaraDiscordEmbed(interaction)
         await interaction.editReply(discordReply);
     },

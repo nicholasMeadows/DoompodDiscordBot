@@ -9,6 +9,8 @@ import {MinecraftReferenceRepository} from "../repository/minecraft-reference-re
 import UserRepository from "../repository/user-repository";
 import GuildRepository from "../repository/guild-repository";
 import CapybaraRepository from "../repository/capybara-repository";
+import BotCommandRepository from "../repository/bot-command-repository";
+import ChannelCommandExecutionProfileRepository from "../repository/channel-command-execution-profile-repository";
 
 export default interface MongoDbInfo {
     mongoClient: MongoClient,
@@ -26,5 +28,7 @@ export interface Repositories {
     walkLogRepository: WalkLogRepository,
     minecraftReferenceRepository: MinecraftReferenceRepository,
     userRepository: UserRepository,
-    capybaraRepository: CapybaraRepository
+    capybaraRepository: CapybaraRepository,
+    botCommandRepository: BotCommandRepository,
+    channelCommandExecutionProfileRepository: ChannelCommandExecutionProfileRepository
 }
