@@ -6,5 +6,6 @@
   "dbPassword": "nicholas_98",
   "dbPort": 27017,
   "dbHost": "127.0.0.1",
-  "logLevel": "INFO"
+  "logLevel": "INFO",
+  "ownerGuildDiscordId": "107567358805032960"
 }

@@ -404,16 +404,33 @@ class DoomBot {
             return true;
         }
         const executionProfile = executionProfileInfo.executionProfile;
-        const notAllowedChannelDiscordIds = executionProfile.notAllowedChannelDiscordIds
+        let notAllowedChannelDiscordIds = executionProfile.notAllowedChannelDiscordIds
+        let allowedChannelDiscordIds = executionProfile.allowedChannelDiscordIds;
+        this.logger.info(`Allowed channel discord ids ${allowedChannelDiscordIds}`)
         this.logger.info(`Not allowed channel discord ids ${notAllowedChannelDiscordIds}`)
-        if (notAllowedChannelDiscordIds.includes('*') || notAllowedChannelDiscordIds.includes(channelDiscordId)) {
+
+        if (notAllowedChannelDiscordIds === undefined && allowedChannelDiscordIds === undefined) {
+            return true;
+        }
+        
+        if (notAllowedChannelDiscordIds === undefined) {
+            notAllowedChannelDiscordIds = [];
+        }
+        if (allowedChannelDiscordIds === undefined) {
+            allowedChannelDiscordIds = [];
+        }
+
+        if (notAllowedChannelDiscordIds.includes(channelDiscordId) || (notAllowedChannelDiscordIds.includes('*') && !allowedChannelDiscordIds.includes(channelDiscordId))) {
             await interaction.editReply({
                 content: 'Cannot use this command in this channel.'
             })
             return false;
         }
-        const allowedChannelDiscordIds = executionProfile.allowedChannelDiscordIds;
-        this.logger.info(`Allowed channel discord ids ${allowedChannelDiscordIds}`)
+
+        if (notAllowedChannelDiscordIds.includes('*') && allowedChannelDiscordIds.includes(channelDiscordId)) {
+            return true;
+        }
+
         return allowedChannelDiscordIds.includes('*') || allowedChannelDiscordIds.includes(channelDiscordId);
     }
 }
