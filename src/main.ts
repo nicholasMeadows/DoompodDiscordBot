@@ -93,40 +93,29 @@ class DoomBot {
     }
 
     loadConfig(): Config {
-
-        const configPath = "./config.json";
-        let config: any;
-        if (fs.existsSync(configPath)) {
-            const configFileContent = fs.readFileSync(configPath, "utf-8");
-            config = JSON.parse(configFileContent);
-        }
-
-        const token = this.checkForConfigValue(config, "token", "TOKEN");
-        const clientId = this.checkForConfigValue(config, "clientId", "CLIENT_ID");
-        const dbName = this.checkForConfigValue(config, "dbName", "DB_NAME")
-        const dbUsername = this.checkForConfigValue(config, "dbUsername", "DB_USERNAME")
-        const dbPassword = this.checkForConfigValue(config, "dbPassword", "DB_PASSWORD")
-        const dbPort = this.checkForConfigValue(config, "dbPort", "DB_PORT")
-        const dbHost = this.checkForConfigValue(config, "dbHost", "DB_HOST")
-        let logLevel = this.checkForConfigValue(config, "logLevel", "LOG_LEVEL", false);
+        const token = this.checkForConfigValue("TOKEN");
+        const clientId = this.checkForConfigValue("CLIENT_ID");
+        const dbName = this.checkForConfigValue("DB_NAME")
+        const dbUsername = this.checkForConfigValue("DB_USERNAME")
+        const dbPassword = this.checkForConfigValue("DB_PASSWORD")
+        const dbPort = this.checkForConfigValue("DB_PORT")
+        const dbHost = this.checkForConfigValue("DB_HOST")
+        let logLevel = this.checkForConfigValue("LOG_LEVEL", false);
         if (logLevel === undefined || !(logLevel in LogLevel)) {
             logLevel = LogLevel.INFO;
         }
         Log.LOG_LEVEL = logLevel
 
-        const ownerGuildDiscordId = this.checkForConfigValue(config, "ownerGuildDiscordId", "OWNER_GUILD_DISCORD_ID", false);
+        const ownerGuildDiscordId = this.checkForConfigValue("OWNER_GUILD_DISCORD_ID", false);
         return new Config(token, clientId, dbName, dbUsername, dbPassword, dbPort, dbHost, ownerGuildDiscordId);
     }
 
-    checkForConfigValue(config: any, jsonKey: string, envKey: string, required = true) {
+    checkForConfigValue(envKey: string, required = true): any {
         const envValue = process.env[envKey];
         if (envValue !== undefined) {
             return envValue;
         }
-        if (config !== undefined && Object.keys(config).includes(jsonKey)) {
-            return config[jsonKey];
-        }
-        this.logger.info(`${required ? 'Required' : ''} key ${envKey} not found environment file and config.json not found.`)
+        this.logger.info(`${required ? 'Required' : ''} key ${envKey} not found environment file.`)
         if (required) {
             process.exit(1);
         }
@@ -412,7 +401,7 @@ class DoomBot {
         if (notAllowedChannelDiscordIds === undefined && allowedChannelDiscordIds === undefined) {
             return true;
         }
-        
+
         if (notAllowedChannelDiscordIds === undefined) {
             notAllowedChannelDiscordIds = [];
         }

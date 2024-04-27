@@ -1,6 +1,5 @@
 import path from "node:path";
 
-const CONFIG_PATH = "./config.json";
 const ASSETS_PATH = path.join(__dirname, "assets");
 const AUDIO_PATH = path.join(ASSETS_PATH, "audio");
 const IMAGE_PATH = path.join(ASSETS_PATH, "image");
@@ -31,7 +30,6 @@ const MY_CAPYBARA_NEXT_CAPY_BUTTON_ID = "MY_CAPYBARA_NEXT_CAPY_BUTTON_ID"
 const MY_CAPYBARA_PREVIOUS_CAPY_BUTTON_ID = "MY_CAPYBARA_PREVIOUS_CAPY_BUTTON_ID"
 
 export {
-    CONFIG_PATH,
     ASSETS_PATH,
     AUDIO_PATH,
     IMAGE_PATH,
