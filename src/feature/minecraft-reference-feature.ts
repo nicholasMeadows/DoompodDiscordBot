@@ -83,10 +83,10 @@ export default class MinecraftReferenceFeature {
             this.logger.debug(`time between ${timeBetween} the record ${minecraftReferenceRecord}`)
             let message = '';
             if (timeBetween < minecraftReferenceRecord) {
-                message = '@everyone Congrats!!!! You have beaten the record for quickest minecraft reference so far. This one clocked in at'
+                message = 'Congrats!!!! You have beaten the record for quickest minecraft reference so far. This one clocked in at'
                 await minecraftReferenceRepository.saveMinecraftReferenceRecord(guildObjectId, timeBetween);
             } else {
-                message = '@everyone Minecraft reference clocking in at'
+                message = 'Minecraft reference clocking in at'
             }
             const oneDaySeconds = 86400;
             const oneHourSeconds = 3600;
