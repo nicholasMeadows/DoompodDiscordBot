@@ -11,5 +11,5 @@ USER doombot
 COPY package.json package-lock.json ./
 RUN npm ci && npm cache clean --force
 
-ADD dist ./
+ADD ./dist ./
 CMD node main.js
